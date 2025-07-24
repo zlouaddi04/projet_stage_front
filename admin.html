@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - LaFarge Holcim</title>
+    <link rel="stylesheet" href="styles/admin.css">
+    <link rel="stylesheet" href="styles/enhancements.css">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>Admin Panel</h2>
+                <p id="adminUserName">Welcome, Admin</p>
+            </div>
+            
+            <ul class="sidebar-menu">
+                <li><a href="#" data-section="dashboard" class="menu-item active">Dashboard</a></li>
+                <li><a href="#" data-section="search" class="menu-item">Search Items</a></li>
+                <li><a href="#" data-section="items" class="menu-item">Manage Items</a></li>
+                <li><a href="#" data-section="users" class="menu-item">Manage Users</a></li>
+                <li><a href="#" data-section="history" class="menu-item">Search History</a></li>
+                <li><a href="#" data-section="movements" class="menu-item">Item Movements</a></li>
+                <li><a href="#" id="logoutBtn" class="menu-item logout">Logout</a></li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="content-section active">
+                <h1>Dashboard</h1>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Total Items</h3>
+                        <p id="totalItems">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Users</h3>
+                        <p id="totalUsers">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Recent Searches</h3>
+                        <p id="recentSearches">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Item Movements</h3>
+                        <p id="recentMovements">0</p>
+                    </div>
+                </div>
+                
+                <div class="recent-activity">
+                    <h2>Recent Activity</h2>
+                    <div id="recentActivityList"></div>
+                </div>
+            </section>
+
+            <!-- Search Section -->
+            <section id="search" class="content-section">
+                <h1>Search Items</h1>
+                <div class="search-container">
+                    <div class="search-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="searchByName">Item Name</label>
+                                <input type="text" id="searchByName" placeholder="Enter item name">
+                            </div>
+                            <div class="form-group">
+                                <label for="searchByCode">Item Code</label>
+                                <input type="text" id="searchByCode" placeholder="Enter item code">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="searchByFamily">Item Family</label>
+                                <select id="searchByFamily">
+                                    <option value="">All Families</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <button type="button" id="searchBtn" class="search-btn">Search</button>
+                                <button type="button" id="clearSearchBtn" class="clear-btn">Clear</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="search-results" id="searchResults"></div>
+            </section>
+
+            <!-- Items Management Section -->
+            <section id="items" class="content-section">
+                <h1>Manage Items</h1>
+                <div class="items-header">
+                    <button class="add-btn" id="addItemBtn">Add New Item</button>
+                </div>
+                
+                <div class="items-table-container">
+                    <table class="items-table">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Family</th>
+                                <th>Location</th>
+                                <th>Price</th>
+                                <th>Stock</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="itemsTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Users Management Section -->
+            <section id="users" class="content-section">
+                <h1>Manage Users</h1>
+                <div class="users-header">
+                    <button class="add-btn" id="addUserBtn">Add New User</button>
+                </div>
+                
+                <div class="users-table-container">
+                    <table class="users-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- History Section -->
+            <section id="history" class="content-section">
+                <h1>Search History</h1>
+                <div class="history-filters">
+                    <div class="form-group">
+                        <label for="historyDateFrom">From Date</label>
+                        <input type="date" id="historyDateFrom">
+                    </div>
+                    <div class="form-group">
+                        <label for="historyDateTo">To Date</label>
+                        <input type="date" id="historyDateTo">
+                    </div>
+                    <div class="form-group">
+                        <label for="historyUser">User</label>
+                        <select id="historyUser">
+                            <option value="">All Users</option>
+                        </select>
+                    </div>
+                    <button class="filter-btn" id="filterHistoryBtn">Filter</button>
+                </div>
+                
+                <div class="history-table-container">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>User</th>
+                                <th>Search Term</th>
+                                <th>Search Type</th>
+                                <th>Results Count</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Movements Section -->
+            <section id="movements" class="content-section">
+                <h1>Item Movements</h1>
+                <div class="movements-header">
+                    <button class="add-btn" id="addMovementBtn">Record Movement</button>
+                </div>
+                
+                <div class="movements-table-container">
+                    <table class="movements-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Item Code</th>
+                                <th>Item Name</th>
+                                <th>Movement Type</th>
+                                <th>Quantity</th>
+                                <th>From Location</th>
+                                <th>To Location</th>
+                                <th>User</th>
+                            </tr>
+                        </thead>
+                        <tbody id="movementsTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="itemModal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" id="closeItemModal">&times;</span>
+            <h2 id="itemModalTitle">Add Item</h2>
+            <form id="itemForm">
+                <div class="form-group">
+                    <label for="itemCode">Item Code</label>
+                    <input type="text" id="itemCode" required>
+                </div>
+                <div class="form-group">
+                    <label for="itemName">Item Name</label>
+                    <input type="text" id="itemName" required>
+                </div>
+                <div class="form-group">
+                    <label for="itemFamily">Item Family</label>
+                    <select id="itemFamily" required>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="itemLocation">Location</label>
+                    <input type="text" id="itemLocation" required>
+                </div>
+                <div class="form-group">
+                    <label for="itemPrice">Price</label>
+                    <input type="number" id="itemPrice" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="itemStock">Stock Quantity</label>
+                    <input type="number" id="itemStock" required>
+                </div>
+                <div class="form-group">
+                    <label for="itemDescription">Description</label>
+                    <textarea id="itemDescription" rows="3"></textarea>
+                </div>
+                <button type="submit" class="save-btn">Save Item</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="userModal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" id="closeUserModal">&times;</span>
+            <h2 id="userModalTitle">Add User</h2>
+            <form id="userForm">
+                <div class="form-group">
+                    <label for="userName">Full Name</label>
+                    <input type="text" id="userName" required>
+                </div>
+                <div class="form-group">
+                    <label for="userEmail">Email</label>
+                    <input type="email" id="userEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="userRole">Role</label>
+                    <select id="userRole" required>
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="userPassword">Password</label>
+                    <input type="password" id="userPassword" required>
+                </div>
+                <button type="submit" class="save-btn">Save User</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="movementModal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" id="closeMovementModal">&times;</span>
+            <h2>Record Movement</h2>
+            <form id="movementForm">
+                <div class="form-group">
+                    <label for="movementItemCode">Item Code</label>
+                    <input type="text" id="movementItemCode" required>
+                </div>
+                <div class="form-group">
+                    <label for="movementType">Movement Type</label>
+                    <select id="movementType" required>
+                        <option value="IN">Stock In</option>
+                        <option value="OUT">Stock Out</option>
+                        <option value="TRANSFER">Transfer</option>
+                        <option value="ADJUSTMENT">Adjustment</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="movementQuantity">Quantity</label>
+                    <input type="number" id="movementQuantity" required>
+                </div>
+                <div class="form-group">
+                    <label for="movementFromLocation">From Location</label>
+                    <input type="text" id="movementFromLocation">
+                </div>
+                <div class="form-group">
+                    <label for="movementToLocation">To Location</label>
+                    <input type="text" id="movementToLocation">
+                </div>
+                <div class="form-group">
+                    <label for="movementNotes">Notes</label>
+                    <textarea id="movementNotes" rows="3"></textarea>
+                </div>
+                <button type="submit" class="save-btn">Record Movement</button>
+            </form>
+        </div>
+    </div>
+
+    <script type="module" src="scripts/admin.js"></script>
+</body>
+</html>

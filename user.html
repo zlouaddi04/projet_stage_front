@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Panel - LaFarge Holcim</title>
+    <link rel="stylesheet" href="styles/user.css">
+    <link rel="stylesheet" href="styles/enhancements.css">
+</head>
+<body>
+    <div class="user-container">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>User Panel</h2>
+                <p id="userName">Welcome, User</p>
+            </div>
+            
+            <ul class="sidebar-menu">
+                <li><a href="#" data-section="search" class="menu-item active">Search Items</a></li>
+                <li><a href="#" data-section="history" class="menu-item">My Search History</a></li>
+                <li><a href="#" data-section="profile" class="menu-item">Profile</a></li>
+                <li><a href="#" id="logoutBtn" class="menu-item logout">Logout</a></li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Search Section -->
+            <section id="search" class="content-section active">
+                <h1>Search Items</h1>
+                <div class="search-container">
+                    <div class="search-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="searchByName">Item Name</label>
+                                <input type="text" id="searchByName" placeholder="Enter item name">
+                            </div>
+                            <div class="form-group">
+                                <label for="searchByCode">Item Code</label>
+                                <input type="text" id="searchByCode" placeholder="Enter item code">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="searchByFamily">Item Family (Optional)</label>
+                                <select id="searchByFamily">
+                                    <option value="">All Families</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <button type="button" id="searchBtn" class="search-btn">Search</button>
+                                <button type="button" id="clearSearchBtn" class="clear-btn">Clear</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="search-results" id="searchResults"></div>
+            </section>
+
+            <!-- History Section -->
+            <section id="history" class="content-section">
+                <h1>My Search History</h1>
+                <div class="history-filters">
+                    <div class="form-group">
+                        <label for="historyDateFrom">From Date</label>
+                        <input type="date" id="historyDateFrom">
+                    </div>
+                    <div class="form-group">
+                        <label for="historyDateTo">To Date</label>
+                        <input type="date" id="historyDateTo">
+                    </div>
+                    <button class="filter-btn" id="filterHistoryBtn">Filter</button>
+                </div>
+                
+                <div class="history-table-container">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Search Term</th>
+                                <th>Search Type</th>
+                                <th>Results Found</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Profile Section -->
+            <section id="profile" class="content-section">
+                <h1>Profile Settings</h1>
+                <div class="profile-container">
+                    <div class="profile-form">
+                        <form id="profileForm">
+                            <div class="form-group">
+                                <label for="profileName">Full Name</label>
+                                <input type="text" id="profileName" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label for="profileEmail">Email</label>
+                                <input type="email" id="profileEmail" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label for="profileRole">Role</label>
+                                <input type="text" id="profileRole" readonly>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <div class="password-reset-section">
+                        <h2>Password Reset</h2>
+                        <p>If you need to reset your password, click the button below. A reset link will be sent to your email address.</p>
+                        <button class="reset-password-btn" id="requestPasswordResetBtn">Request Password Reset</button>
+                        <div class="success-message" id="resetSuccessMessage" style="display: none;"></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script type="module" src="scripts/user.js"></script>
+</body>
+</html>

@@ -1,0 +1,225 @@
+/* Additional styles for search results and enhanced UI */
+
+/* Search result enhancements */
+.item-code {
+    color: #7f8c8d;
+    font-weight: normal;
+    font-size: 0.9em;
+}
+
+.location-highlight {
+    background-color: #f39c12;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.price-value {
+    color: #27ae60;
+    font-weight: 600;
+}
+
+.in-stock {
+    color: #27ae60;
+    font-weight: 500;
+}
+
+.out-of-stock {
+    color: #e74c3c;
+    font-weight: 500;
+}
+
+.description-item {
+    grid-column: 1 / -1;
+}
+
+.description-item .detail-value {
+    font-style: italic;
+    color: #5d6d7e;
+}
+
+/* Search type badges */
+.search-type-badge {
+    background-color: #3498db;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    text-transform: capitalize;
+}
+
+.results-count {
+    color: #27ae60;
+    font-weight: 500;
+}
+
+/* No history/results styling */
+.no-history,
+.no-results {
+    text-align: center;
+    padding: 40px;
+    color: #7f8c8d;
+}
+
+.no-history p,
+.no-results p {
+    margin-bottom: 10px;
+}
+
+.no-results i {
+    font-size: 3rem;
+    display: block;
+    margin-bottom: 15px;
+}
+
+/* Activity item styling */
+.activity-item {
+    padding: 15px;
+    border-left: 3px solid #3498db;
+    margin-bottom: 15px;
+    background-color: #f8f9fa;
+    border-radius: 0 8px 8px 0;
+}
+
+.activity-item p {
+    margin-bottom: 5px;
+    color: #2c3e50;
+}
+
+.activity-time {
+    font-size: 0.8rem;
+    color: #7f8c8d;
+    font-style: italic;
+}
+
+.no-activity {
+    text-align: center;
+    color: #7f8c8d;
+    font-style: italic;
+    padding: 20px;
+}
+
+/* Status indicators */
+.status-active {
+    color: #27ae60;
+    font-weight: 500;
+}
+
+.status-inactive {
+    color: #e74c3c;
+    font-weight: 500;
+}
+
+/* Enhanced button hover effects */
+.search-btn:active,
+.filter-btn:active {
+    transform: translateY(0);
+}
+
+/* Loading states */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #3498db;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Mobile specific enhancements */
+@media (max-width: 768px) {
+    .search-result-item {
+        margin-bottom: 20px;
+    }
+    
+    .search-result-item h3 {
+        font-size: 1.1rem;
+        line-height: 1.3;
+    }
+    
+    .item-code {
+        display: block;
+        margin-top: 5px;
+    }
+    
+    .detail-item {
+        margin-bottom: 10px;
+    }
+    
+    .activity-item {
+        padding: 12px;
+    }
+}
+
+/* Print styles */
+@media print {
+    .sidebar,
+    .menu-toggle,
+    .search-btn,
+    .clear-btn,
+    .filter-btn,
+    .reset-password-btn {
+        display: none !important;
+    }
+    
+    .main-content {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+    
+    .search-result-item {
+        page-break-inside: avoid;
+        border: 1px solid #ddd;
+        margin-bottom: 15px;
+    }
+}
+
+/* Accessibility improvements */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Focus states for better accessibility */
+button:focus,
+input:focus,
+select:focus {
+    outline: 2px solid #3498db;
+    outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .search-result-item {
+        border: 2px solid #000;
+    }
+    
+    .location-highlight {
+        background-color: #000;
+        color: #fff;
+    }
+}

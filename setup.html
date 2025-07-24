@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LaFarge Holcim - Setup Instructions</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .demo-credentials {
+            background: #e8f5e8;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #27ae60;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 5px;
+        }
+        .btn:hover {
+            background: #219a52;
+        }
+        .error {
+            background: #ffe6e6;
+            color: #d63031;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏗️ LaFarge Holcim Inventory Management System</h1>
+        
+        <div class="error">
+            <strong>⚠️ Development Server Required</strong><br>
+            This application uses TypeScript modules and requires a local development server to run properly. 
+            Direct file opening will not work due to CORS restrictions.
+        </div>
+
+        <h2>🚀 Quick Setup Options:</h2>
+
+        <h3>Option 1: Using npm (Recommended)</h3>
+        <ol>
+            <li>Install Node.js from <a href="https://nodejs.org" target="_blank">nodejs.org</a></li>
+            <li>Open terminal in this project folder</li>
+            <li>Run: <code>npm install</code></li>
+            <li>Run: <code>npm run dev</code></li>
+            <li>Application will open at http://localhost:8080</li>
+        </ol>
+
+        <h3>Option 2: VS Code Live Server</h3>
+        <ol>
+            <li>Install VS Code</li>
+            <li>Install "Live Server" extension</li>
+            <li>Right-click on index.html → "Open with Live Server"</li>
+        </ol>
+
+        <h3>Option 3: Python Server</h3>
+        <ol>
+            <li>Open terminal in this project folder</li>
+            <li>Run: <code>python -m http.server 8000</code></li>
+            <li>Open http://localhost:8000 in your browser</li>
+        </ol>
+
+        <div class="demo-credentials">
+            <h3>🔐 Demo Login Credentials:</h3>
+            <strong>Admin Access:</strong><br>
+            Email: admin@lafargeholcim.com<br>
+            Password: admin123<br><br>
+
+            <strong>User Access:</strong><br>
+            Email: john.doe@lafargeholcim.com<br>
+            Password: user123
+        </div>
+
+        <h2>✨ Features Preview:</h2>
+        <ul>
+            <li><strong>Three Interfaces:</strong> Login, Admin Panel, User Panel</li>
+            <li><strong>TypeScript:</strong> Strongly typed, readable code</li>
+            <li><strong>Responsive Design:</strong> Works on desktop, tablet, and mobile</li>
+            <li><strong>Search Functionality:</strong> Find items by name, code, or family</li>
+            <li><strong>User Management:</strong> Admin can manage users and items</li>
+            <li><strong>Search History:</strong> Track all search activities</li>
+            <li><strong>Inventory Movements:</strong> Record stock movements</li>
+        </ul>
+
+        <p style="text-align: center; margin-top: 30px;">
+            <strong>Once you have a server running, navigate to index.html to start the application!</strong>
+        </p>
+    </div>
+
+    <script>
+        // Check if we're running on a server
+        if (window.location.protocol === 'file:') {
+            // We're running from file system, show warning
+            console.warn('Application needs to be served from a web server to work properly with TypeScript modules.');
+        } else {
+            // We're on a server, redirect to the actual app
+            setTimeout(() => {
+                if (confirm('You are running on a server! Would you like to go to the application now?')) {
+                    window.location.href = 'index.html';
+                }
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

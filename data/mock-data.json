@@ -1,0 +1,284 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "code": "LH001",
+      "name": "Portland Cement Type I",
+      "family": "Cement",
+      "location": "Warehouse A-1",
+      "price": 125.50,
+      "stock": 500,
+      "description": "High quality Portland cement for general construction purposes. Meets all international standards for strength and durability.",
+      "lastUpdated": "2024-01-15"
+    },
+    {
+      "id": 2,
+      "code": "LH002",
+      "name": "Concrete Mixer 350L",
+      "family": "Equipment",
+      "location": "Equipment Yard B",
+      "price": 2500.00,
+      "stock": 15,
+      "description": "Electric concrete mixer with 350L capacity. Perfect for medium-scale construction projects.",
+      "lastUpdated": "2024-01-14"
+    },
+    {
+      "id": 3,
+      "code": "LH003",
+      "name": "Steel Rebar 12mm",
+      "family": "Steel",
+      "location": "Steel Storage C-2",
+      "price": 45.75,
+      "stock": 1200,
+      "description": "High strength steel reinforcement bars, 12mm diameter. Grade 60 steel conforming to ASTM standards.",
+      "lastUpdated": "2024-01-16"
+    },
+    {
+      "id": 4,
+      "code": "LH004",
+      "name": "Limestone Aggregate",
+      "family": "Aggregates",
+      "location": "Outdoor Yard D",
+      "price": 25.00,
+      "stock": 5000,
+      "description": "Crushed limestone aggregate for concrete production. Size: 19mm nominal maximum.",
+      "lastUpdated": "2024-01-13"
+    },
+    {
+      "id": 5,
+      "code": "LH005",
+      "name": "Ready Mix Concrete",
+      "family": "Concrete",
+      "location": "Plant E-1",
+      "price": 95.00,
+      "stock": 0,
+      "description": "Pre-mixed concrete for immediate use. Standard mix design for residential construction.",
+      "lastUpdated": "2024-01-17"
+    },
+    {
+      "id": 6,
+      "code": "LH006",
+      "name": "Construction Sand",
+      "family": "Aggregates",
+      "location": "Sand Storage F-1",
+      "price": 35.00,
+      "stock": 2500,
+      "description": "Fine aggregate sand suitable for concrete and mortar production. Washed and graded.",
+      "lastUpdated": "2024-01-16"
+    },
+    {
+      "id": 7,
+      "code": "LH007",
+      "name": "Hydraulic Excavator",
+      "family": "Equipment",
+      "location": "Heavy Equipment Yard G",
+      "price": 85000.00,
+      "stock": 3,
+      "description": "20-ton hydraulic excavator for heavy construction work. Includes attachments and maintenance kit.",
+      "lastUpdated": "2024-01-12"
+    },
+    {
+      "id": 8,
+      "code": "LH008",
+      "name": "Reinforcement Wire Mesh",
+      "family": "Steel",
+      "location": "Steel Storage C-3",
+      "price": 125.00,
+      "stock": 150,
+      "description": "Welded wire mesh for concrete reinforcement. 6mm wire, 200x200mm mesh pattern.",
+      "lastUpdated": "2024-01-15"
+    },
+    {
+      "id": 9,
+      "code": "LH009",
+      "name": "White Portland Cement",
+      "family": "Cement",
+      "location": "Warehouse A-2",
+      "price": 180.00,
+      "stock": 200,
+      "description": "White Portland cement for architectural and decorative concrete applications.",
+      "lastUpdated": "2024-01-14"
+    },
+    {
+      "id": 10,
+      "code": "LH010",
+      "name": "Concrete Pump",
+      "family": "Equipment",
+      "location": "Equipment Yard B-2",
+      "price": 45000.00,
+      "stock": 5,
+      "description": "Truck-mounted concrete pump for high-rise construction. 40m reach capacity.",
+      "lastUpdated": "2024-01-11"
+    }
+  ],
+  "users": [
+    {
+      "id": 1,
+      "name": "Admin User",
+      "email": "admin@lafargeholcim.com",
+      "password": "admin123",
+      "role": "admin",
+      "status": "active",
+      "lastLogin": "2024-01-17T10:30:00"
+    },
+    {
+      "id": 2,
+      "name": "John Doe",
+      "email": "john.doe@lafargeholcim.com",
+      "password": "user123",
+      "role": "user",
+      "status": "active",
+      "lastLogin": "2024-01-16T14:20:00"
+    },
+    {
+      "id": 3,
+      "name": "Jane Smith",
+      "email": "jane.smith@lafargeholcim.com",
+      "password": "user456",
+      "role": "user",
+      "status": "active",
+      "lastLogin": "2024-01-15T09:15:00"
+    },
+    {
+      "id": 4,
+      "name": "Mike Johnson",
+      "email": "mike.johnson@lafargeholcim.com",
+      "password": "user789",
+      "role": "user",
+      "status": "inactive"
+    },
+    {
+      "id": 5,
+      "name": "Sarah Wilson",
+      "email": "sarah.wilson@lafargeholcim.com",
+      "password": "user101",
+      "role": "user",
+      "status": "active",
+      "lastLogin": "2024-01-17T08:45:00"
+    }
+  ],
+  "searchHistory": [
+    {
+      "id": 1,
+      "userId": 2,
+      "userEmail": "john.doe@lafargeholcim.com",
+      "searchTerm": "cement",
+      "searchType": "name",
+      "resultsCount": 2,
+      "timestamp": "2024-01-17T09:30:00"
+    },
+    {
+      "id": 2,
+      "userId": 3,
+      "userEmail": "jane.smith@lafargeholcim.com",
+      "searchTerm": "LH003",
+      "searchType": "code",
+      "resultsCount": 1,
+      "timestamp": "2024-01-16T15:45:00"
+    },
+    {
+      "id": 3,
+      "userId": 2,
+      "userEmail": "john.doe@lafargeholcim.com",
+      "searchTerm": "Steel",
+      "searchType": "family",
+      "resultsCount": 2,
+      "timestamp": "2024-01-16T11:20:00"
+    },
+    {
+      "id": 4,
+      "userId": 5,
+      "userEmail": "sarah.wilson@lafargeholcim.com",
+      "searchTerm": "Equipment",
+      "searchType": "family",
+      "resultsCount": 3,
+      "timestamp": "2024-01-17T08:50:00"
+    },
+    {
+      "id": 5,
+      "userId": 3,
+      "userEmail": "jane.smith@lafargeholcim.com",
+      "searchTerm": "concrete",
+      "searchType": "name",
+      "resultsCount": 3,
+      "timestamp": "2024-01-15T10:30:00"
+    }
+  ],
+  "movements": [
+    {
+      "id": 1,
+      "itemCode": "LH001",
+      "itemName": "Portland Cement Type I",
+      "movementType": "IN",
+      "quantity": 100,
+      "fromLocation": "Supplier - ABC Cement Co.",
+      "toLocation": "Warehouse A-1",
+      "userId": 1,
+      "userEmail": "admin@lafargeholcim.com",
+      "timestamp": "2024-01-15T08:00:00",
+      "notes": "New stock delivery from regular supplier"
+    },
+    {
+      "id": 2,
+      "itemCode": "LH003",
+      "itemName": "Steel Rebar 12mm",
+      "movementType": "OUT",
+      "quantity": 50,
+      "fromLocation": "Steel Storage C-2",
+      "toLocation": "Project Site - Downtown Tower",
+      "userId": 2,
+      "userEmail": "john.doe@lafargeholcim.com",
+      "timestamp": "2024-01-16T10:30:00",
+      "notes": "Site delivery for foundation work phase 1"
+    },
+    {
+      "id": 3,
+      "itemCode": "LH004",
+      "itemName": "Limestone Aggregate",
+      "movementType": "OUT",
+      "quantity": 200,
+      "fromLocation": "Outdoor Yard D",
+      "toLocation": "Project Site - Highway Bridge",
+      "userId": 3,
+      "userEmail": "jane.smith@lafargeholcim.com",
+      "timestamp": "2024-01-16T14:15:00",
+      "notes": "Aggregate delivery for concrete production"
+    },
+    {
+      "id": 4,
+      "itemCode": "LH002",
+      "itemName": "Concrete Mixer 350L",
+      "movementType": "TRANSFER",
+      "quantity": 2,
+      "fromLocation": "Equipment Yard B",
+      "toLocation": "Equipment Yard B-2",
+      "userId": 1,
+      "userEmail": "admin@lafargeholcim.com",
+      "timestamp": "2024-01-17T07:30:00",
+      "notes": "Equipment relocation for maintenance area reorganization"
+    },
+    {
+      "id": 5,
+      "itemCode": "LH006",
+      "itemName": "Construction Sand",
+      "movementType": "IN",
+      "quantity": 500,
+      "fromLocation": "Quarry - Mountain Sand Ltd.",
+      "toLocation": "Sand Storage F-1",
+      "userId": 1,
+      "userEmail": "admin@lafargeholcim.com",
+      "timestamp": "2024-01-17T11:00:00",
+      "notes": "Fresh sand delivery - quality tested and approved"
+    }
+  ],
+  "itemFamilies": [
+    "Cement",
+    "Equipment",
+    "Steel",
+    "Aggregates",
+    "Concrete",
+    "Tools",
+    "Safety Equipment",
+    "Chemicals"
+  ]
+}

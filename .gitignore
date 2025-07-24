@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment variables
+.env
+.env.local
+
+# Build files
+dist/
+build/
+*.exe
+
+# Editor/IDE files
+.idea/
+.vscode/
+*.swp
+
+# OS junk files
+.DS_Store       # macOS
+Thumbs.db       # Windows

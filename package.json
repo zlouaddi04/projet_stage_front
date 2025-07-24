@@ -1,0 +1,25 @@
+{
+  "name": "lafarge-holcim-inventory",
+  "version": "1.0.0",
+  "description": "LaFarge Holcim Inventory Management System",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx http-server . -p 8080 -c-1",
+    "dev": "npx http-server . -p 8080 -c-1 -o",
+    "build": "tsc",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "inventory",
+    "management",
+    "typescript",
+    "html",
+    "css"
+  ],
+  "author": "LaFarge Holcim Team",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "http-server": "^14.1.1"
+  }
+}
