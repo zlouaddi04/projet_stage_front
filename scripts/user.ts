@@ -308,7 +308,8 @@ class UserPanel {
         if (items.length === 0) {
             searchResults.innerHTML = `
                 <div class="no-results">
-                    <i>📦</i>
+                    <i class="no-results-icon">📦</i>
+                    <h3>No items found</h3>
                     <p>No items found matching your search criteria.</p>
                     <p>Please try different search terms or check the spelling.</p>
                 </div>
@@ -468,6 +469,56 @@ class UserPanel {
             hour: '2-digit',
             minute: '2-digit'
         });
+    }
+
+    // Public methods for button actions
+    public viewItemDetails(id: number): void {
+        const items = UserDataManager.getItemsSync();
+        const item = items.find(i => i.id === id);
+        if (item) {
+            const modal = document.createElement('div');
+            modal.className = 'item-detail-modal';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Item Details</h2>
+                        <button class="close-btn" onclick="this.parentElement.parentElement.parentElement.remove()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <strong>Article:</strong> ${item.article}
+                            </div>
+                            <div class="detail-item">
+                                <strong>Usine:</strong> ${item.Usine}
+                            </div>
+                            <div class="detail-item">
+                                <strong>Magasin:</strong> ${item.Magasin}
+                            </div>
+                            <div class="detail-item">
+                                <strong>Emplacement:</strong> ${item.Emplacement}
+                            </div>
+                            <div class="detail-item">
+                                <strong>Stock:</strong> ${item.Stock} ${item.Unite_Mesure || 'units'}
+                            </div>
+                            <div class="detail-item full-width">
+                                <strong>Description:</strong> ${item.Description}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                background: rgba(0,0,0,0.5); display: flex; justify-content: center; 
+                align-items: center; z-index: 1000;
+            `;
+            document.body.appendChild(modal);
+        }
+    }
+
+    public showLocation(emplacement: string): void {
+        alert(`Item Location: ${emplacement}\n\nThis would typically show a map or detailed location information.`);
     }
 
     private logout(): void {

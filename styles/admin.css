@@ -518,3 +518,43 @@ body {
         padding: 20px;
     }
 }
+
+/* Stock Status Highlighting */
+.stock-available {
+    color: #27ae60 !important;
+    font-weight: 600;
+}
+
+.stock-empty {
+    color: #e74c3c !important;
+    font-weight: 600;
+}
+
+.detail-item .detail-value.stock-available {
+    background: #d5f4e6;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.detail-item .detail-value.stock-empty {
+    background: #ffeaea;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+/* In-Stock and Out-of-Stock styles for user panel */
+.in-stock {
+    color: #27ae60 !important;
+    font-weight: 600;
+    background: #d5f4e6;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.out-of-stock {
+    color: #e74c3c !important;
+    font-weight: 600;
+    background: #ffeaea;
+    padding: 2px 8px;
+    border-radius: 4px;
+}

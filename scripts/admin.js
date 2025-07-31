@@ -427,21 +427,21 @@ class AdminPanel {
     handleSearch() {
         const searchByArticle = document.getElementById('searchByArticle').value.trim();
         const searchByEmplacement = document.getElementById('searchByEmplacement').value.trim();
-        const searchByUsine = document.getElementById('searchByUsine').value;
+        const searchByDesc = document.getElementById('searchByDesc').value;
         const items = DataManager.getItems();
         let filteredItems = items;
         if (searchByArticle) {
-            filteredItems = filteredItems.filter(item => item.article.toLowerCase().includes(searchByArticle.toLowerCase()));
+            filteredItems = filteredItems.filter(item => item.article.toLowerCase().startsWith(searchByArticle.toLowerCase()));
         }
         if (searchByEmplacement) {
-            filteredItems = filteredItems.filter(item => item.Emplacement.toLowerCase().includes(searchByEmplacement.toLowerCase()));
+            filteredItems = filteredItems.filter(item => item.Emplacement.toLowerCase().startsWith(searchByEmplacement.toLowerCase()));
         }
-        if (searchByUsine) {
-            filteredItems = filteredItems.filter(item => item.Usine === searchByUsine);
+        if (searchByDesc) {
+            filteredItems = filteredItems.filter(item => item.Description.toLocaleLowerCase().startsWith(searchByDesc.toLocaleLowerCase()));
         }
         this.displaySearchResults(filteredItems);
-        const searchTerm = searchByArticle || searchByEmplacement || searchByUsine;
-        const searchType = searchByArticle ? 'article' : searchByEmplacement ? 'Emplacement' : 'Usine';
+        const searchTerm = searchByArticle || searchByEmplacement || searchByDesc;
+        const searchType = searchByArticle ? 'article' : searchByEmplacement ? 'Emplacement' : 'Description';
         if (searchTerm && this.currentUser) {
             DataManager.addSearchHistory(this.currentUser.userId, this.currentUser.email, searchTerm, searchType, filteredItems.length);
         }
@@ -478,7 +478,7 @@ class AdminPanel {
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Stock</span>
-                            <span class="detail-value">${item.Stock}</span>
+                            <span class="detail-value stock-${item.Stock > 0 ? 'available' : 'empty'}">${item.Stock}</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Unité de Mesure</span>

@@ -52,7 +52,7 @@ interface SearchHistory {
     userId: number;
     userEmail: string;
     searchTerm: string;
-    searchType: 'article' | 'Emplacement' | 'Usine';
+    searchType: 'article' | 'Emplacement' | 'Description';
     resultsCount: number;
     timestamp: string;
 }
@@ -215,7 +215,7 @@ class DataManager {
         localStorage.setItem(this.MOVEMENTS_KEY, JSON.stringify(movements));
     }
 
-    static addSearchHistory(userId: number, userEmail: string, searchTerm: string, searchType: 'article' | 'Emplacement' | 'Usine', resultsCount: number): void {
+    static addSearchHistory(userId: number, userEmail: string, searchTerm: string, searchType: 'article' | 'Emplacement' | 'Description', resultsCount: number): void {
         const history = this.getSearchHistory();
         const newEntry: SearchHistory = {
             id: history.length + 1,
@@ -596,32 +596,32 @@ class AdminPanel {
     private handleSearch(): void {
         const searchByArticle = (document.getElementById('searchByArticle') as HTMLInputElement).value.trim();
         const searchByEmplacement = (document.getElementById('searchByEmplacement') as HTMLInputElement).value.trim();
-        const searchByUsine = (document.getElementById('searchByUsine') as HTMLSelectElement).value;
+        const searchByDesc = (document.getElementById('searchByDesc') as HTMLInputElement).value;
 
         const items = DataManager.getItems();
         let filteredItems = items;
 
         if (searchByArticle) {
             filteredItems = filteredItems.filter(item => 
-                item.article.toLowerCase().includes(searchByArticle.toLowerCase())
+                item.article.toLowerCase().startsWith(searchByArticle.toLowerCase())
             );
         }
 
         if (searchByEmplacement) {
             filteredItems = filteredItems.filter(item => 
-                item.Emplacement.toLowerCase().includes(searchByEmplacement.toLowerCase())
+                item.Emplacement.toLowerCase().startsWith(searchByEmplacement.toLowerCase())
             );
         }
 
-        if (searchByUsine) {
-            filteredItems = filteredItems.filter(item => item.Usine === searchByUsine);
+        if (searchByDesc) {
+            filteredItems = filteredItems.filter(item => item.Description.toLocaleLowerCase().startsWith(searchByDesc.toLocaleLowerCase()));
         }
 
         this.displaySearchResults(filteredItems);
 
         // Record search history
-        const searchTerm = searchByArticle || searchByEmplacement || searchByUsine;
-        const searchType = searchByArticle ? 'article' : searchByEmplacement ? 'Emplacement' : 'Usine';
+        const searchTerm = searchByArticle || searchByEmplacement || searchByDesc;
+        const searchType = searchByArticle ? 'article' : searchByEmplacement ? 'Emplacement' : 'Description';
         
         if (searchTerm && this.currentUser) {
             DataManager.addSearchHistory(
@@ -667,7 +667,7 @@ class AdminPanel {
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Stock</span>
-                            <span class="detail-value">${item.Stock}</span>
+                            <span class="detail-value stock-${item.Stock > 0 ? 'available' : 'empty'}">${item.Stock}</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Unité de Mesure</span>

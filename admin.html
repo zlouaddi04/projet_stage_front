@@ -64,20 +64,18 @@
                     <div class="search-form">
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="searchByName">Item Name</label>
-                                <input type="text" id="searchByName" placeholder="Enter item name">
+                                <label for="searchByArticle">Article</label>
+                                <input type="text" id="searchByArticle" placeholder="Enter article reference">
                             </div>
                             <div class="form-group">
-                                <label for="searchByCode">Item Code</label>
-                                <input type="text" id="searchByCode" placeholder="Enter item code">
+                                <label for="searchByEmplacement">Emplacement</label>
+                                <input type="text" id="searchByEmplacement" placeholder="Enter location">
                             </div>
                         </div>
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="searchByFamily">Item Family</label>
-                                <select id="searchByFamily">
-                                    <option value="">All Families</option>
-                                </select>
+                                <label for="searchByDesc">Description</label>
+                                <input type="text" id="searchByDesc" placeholder="Enter Description">
                             </div>
                             <div class="form-group">
                                 <button type="button" id="searchBtn" class="search-btn">Search</button>
@@ -95,6 +93,7 @@
                 <h1>Manage Items</h1>
                 <div class="items-header">
                     <button class="add-btn" id="addItemBtn">Add New Item</button>
+                    <button class="refresh-btn" id="refreshDataBtn">Refresh Data</button>
                 </div>
                 
                 <div class="items-table-container">
@@ -102,9 +101,9 @@
                         <thead>
                             <tr>
                                 <th>ID</th>
-                                <th>CodeArticle</th>
-                                <th>IdUsine</th>
-                                <th>IdMagasin</th>
+                                <th>Article</th>
+                                <th>Usine</th>
+                                <th>Magasin</th>
                                 <th>Emplacement</th>
                                 <th>Stock</th>
                                 <th>Unite Mesure</th>
