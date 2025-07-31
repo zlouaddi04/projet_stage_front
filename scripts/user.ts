@@ -9,6 +9,17 @@ interface Item {
     Description: string;
     Unite_Mesure?: string;
 }
+interface BackendItem {
+    id: number;
+    usine: string;
+    magasin: string;
+    reference: string;  // maps to article
+    emplacement: string; // maps to Emplacement
+    stock: number;      // maps to Stock
+    desc: string;       // maps to Description
+    unite?: string;     // maps to Unite_Mesure
+}
+
 
 interface UserSession {
     userId: number;
@@ -23,7 +34,7 @@ interface UserSearchHistory {
     userId: number;
     userEmail: string;
     searchTerm: string;
-    searchType: 'article' | 'Emplacement' | 'Usine';
+    searchType: 'article' | 'Emplacement' | 'Description';
     resultsCount: number;
     timestamp: string;
 }
@@ -50,8 +61,19 @@ class UserDataManager {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            const items: Item[] = await response.json();
-            localStorage.setItem(this.ITEMS_KEY, JSON.stringify(items));
+            const backendItems: BackendItem[] = await response.json();
+            const convertedItems: Item[] = backendItems.map(backendItem => ({
+                id: backendItem.id,
+                Usine: backendItem.usine,
+                Magasin: backendItem.magasin,
+                article: backendItem.reference,
+                Emplacement: backendItem.emplacement,
+                Stock: backendItem.stock,
+                Description: backendItem.desc,
+                Unite_Mesure: backendItem.unite
+            }));
+            
+            localStorage.setItem(this.ITEMS_KEY, JSON.stringify(convertedItems));
         } catch (error) {
             console.error('Failed to load items from API:', error);
             throw error;
@@ -70,7 +92,7 @@ class UserDataManager {
         localStorage.setItem(this.SEARCH_HISTORY_KEY, JSON.stringify(history));
     }
 
-    static addSearchHistory(userId: number, userEmail: string, searchTerm: string, searchType: 'article' | 'Emplacement' | 'Usine', resultsCount: number): void {
+    static addSearchHistory(userId: number, userEmail: string, searchTerm: string, searchType: 'article' | 'Emplacement' | 'Description', resultsCount: number): void {
         const history = this.getSearchHistory();
         const newEntry: UserSearchHistory = {
             id: history.length + 1,
@@ -215,33 +237,6 @@ class UserPanel {
     }
 
     private async loadSearch(): Promise<void> {
-        try {
-            // Populate item usines dropdown
-            const items = await UserDataManager.getItems();
-            const usines = [...new Set(items.map(item => item.Usine))];
-            
-            const usineSelect = document.getElementById('searchByUsine') as HTMLSelectElement;
-            if (usineSelect) {
-                usineSelect.innerHTML = '<option value="">All Usines</option>';
-                usines.forEach(usine => {
-                    usineSelect.innerHTML += `<option value="${usine}">${usine}</option>`;
-                });
-            }
-        } catch (error) {
-            console.error('Failed to load search data:', error);
-            // Fallback to sync method
-            const items = UserDataManager.getItemsSync();
-            const usines = [...new Set(items.map(item => item.Usine))];
-            
-            const usineSelect = document.getElementById('searchByUsine') as HTMLSelectElement;
-            if (usineSelect) {
-                usineSelect.innerHTML = '<option value="">All Usines</option>';
-                usines.forEach(usine => {
-                    usineSelect.innerHTML += `<option value="${usine}">${usine}</option>`;
-                });
-            }
-        }
-
         // Clear any previous search results
         const searchResults = document.getElementById('searchResults');
         if (searchResults) {
@@ -252,10 +247,10 @@ class UserPanel {
     private async handleSearch(): Promise<void> {
         const searchByArticle = (document.getElementById('searchByArticle') as HTMLInputElement).value.trim();
         const searchByEmplacement = (document.getElementById('searchByEmplacement') as HTMLInputElement).value.trim();
-        const searchByUsine = (document.getElementById('searchByUsine') as HTMLSelectElement).value;
+        const searchByDescription = (document.getElementById('searchByDescription') as HTMLInputElement).value.trim();
 
         // Validate that at least one search criteria is provided
-        if (!searchByArticle && !searchByEmplacement && !searchByUsine) {
+        if (!searchByArticle && !searchByEmplacement && !searchByDescription) {
             alert('Please provide at least one search criteria.');
             return;
         }
@@ -266,25 +261,27 @@ class UserPanel {
 
             if (searchByArticle) {
                 filteredItems = filteredItems.filter(item => 
-                    item.article.toLowerCase().includes(searchByArticle.toLowerCase())
+                    item.article.toLowerCase().startsWith(searchByArticle.toLowerCase())
                 );
             }
 
             if (searchByEmplacement) {
                 filteredItems = filteredItems.filter(item => 
-                    item.Emplacement.toLowerCase().includes(searchByEmplacement.toLowerCase())
+                    item.Emplacement.toLowerCase().startsWith(searchByEmplacement.toLowerCase())
                 );
             }
 
-            if (searchByUsine) {
-                filteredItems = filteredItems.filter(item => item.Usine === searchByUsine);
+            if (searchByDescription) {
+                filteredItems = filteredItems.filter(item => 
+                    item.Description.toLowerCase().startsWith(searchByDescription.toLowerCase())
+                );
             }
 
             this.displaySearchResults(filteredItems);
 
             // Record search history
-            const searchTerm = searchByArticle || searchByEmplacement || searchByUsine;
-            const searchType = searchByArticle ? 'article' : searchByEmplacement ? 'Emplacement' : 'Usine';
+            const searchTerm = searchByArticle || searchByEmplacement || searchByDescription;
+            const searchType = searchByArticle ? 'article' : searchByEmplacement ? 'Emplacement' : 'Description';
             
             if (this.currentUser) {
                 UserDataManager.addSearchHistory(
@@ -365,7 +362,7 @@ class UserPanel {
     private clearSearch(): void {
         (document.getElementById('searchByArticle') as HTMLInputElement).value = '';
         (document.getElementById('searchByEmplacement') as HTMLInputElement).value = '';
-        (document.getElementById('searchByUsine') as HTMLSelectElement).value = '';
+        (document.getElementById('searchByDescription') as HTMLInputElement).value = '';
         
         const searchResults = document.getElementById('searchResults');
         if (searchResults) {

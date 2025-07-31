@@ -15,8 +15,18 @@ class UserDataManager {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            const items = await response.json();
-            localStorage.setItem(this.ITEMS_KEY, JSON.stringify(items));
+            const backendItems = await response.json();
+            const convertedItems = backendItems.map(backendItem => ({
+                id: backendItem.id,
+                Usine: backendItem.usine,
+                Magasin: backendItem.magasin,
+                article: backendItem.reference,
+                Emplacement: backendItem.emplacement,
+                Stock: backendItem.stock,
+                Description: backendItem.desc,
+                Unite_Mesure: backendItem.unite
+            }));
+            localStorage.setItem(this.ITEMS_KEY, JSON.stringify(convertedItems));
         }
         catch (error) {
             console.error('Failed to load items from API:', error);
@@ -145,29 +155,6 @@ class UserPanel {
         sidebar?.classList.remove('active');
     }
     async loadSearch() {
-        try {
-            const items = await UserDataManager.getItems();
-            const usines = [...new Set(items.map(item => item.Usine))];
-            const usineSelect = document.getElementById('searchByUsine');
-            if (usineSelect) {
-                usineSelect.innerHTML = '<option value="">All Usines</option>';
-                usines.forEach(usine => {
-                    usineSelect.innerHTML += `<option value="${usine}">${usine}</option>`;
-                });
-            }
-        }
-        catch (error) {
-            console.error('Failed to load search data:', error);
-            const items = UserDataManager.getItemsSync();
-            const usines = [...new Set(items.map(item => item.Usine))];
-            const usineSelect = document.getElementById('searchByUsine');
-            if (usineSelect) {
-                usineSelect.innerHTML = '<option value="">All Usines</option>';
-                usines.forEach(usine => {
-                    usineSelect.innerHTML += `<option value="${usine}">${usine}</option>`;
-                });
-            }
-        }
         const searchResults = document.getElementById('searchResults');
         if (searchResults) {
             searchResults.innerHTML = '';
@@ -176,8 +163,8 @@ class UserPanel {
     async handleSearch() {
         const searchByArticle = document.getElementById('searchByArticle').value.trim();
         const searchByEmplacement = document.getElementById('searchByEmplacement').value.trim();
-        const searchByUsine = document.getElementById('searchByUsine').value;
-        if (!searchByArticle && !searchByEmplacement && !searchByUsine) {
+        const searchByDescription = document.getElementById('searchByDescription').value.trim();
+        if (!searchByArticle && !searchByEmplacement && !searchByDescription) {
             alert('Please provide at least one search criteria.');
             return;
         }
@@ -185,17 +172,17 @@ class UserPanel {
             const items = await UserDataManager.getItems();
             let filteredItems = items;
             if (searchByArticle) {
-                filteredItems = filteredItems.filter(item => item.article.toLowerCase().includes(searchByArticle.toLowerCase()));
+                filteredItems = filteredItems.filter(item => item.article.toLowerCase().startsWith(searchByArticle.toLowerCase()));
             }
             if (searchByEmplacement) {
-                filteredItems = filteredItems.filter(item => item.Emplacement.toLowerCase().includes(searchByEmplacement.toLowerCase()));
+                filteredItems = filteredItems.filter(item => item.Emplacement.toLowerCase().startsWith(searchByEmplacement.toLowerCase()));
             }
-            if (searchByUsine) {
-                filteredItems = filteredItems.filter(item => item.Usine === searchByUsine);
+            if (searchByDescription) {
+                filteredItems = filteredItems.filter(item => item.Description.toLowerCase().startsWith(searchByDescription.toLowerCase()));
             }
             this.displaySearchResults(filteredItems);
-            const searchTerm = searchByArticle || searchByEmplacement || searchByUsine;
-            const searchType = searchByArticle ? 'article' : searchByEmplacement ? 'Emplacement' : 'Usine';
+            const searchTerm = searchByArticle || searchByEmplacement || searchByDescription;
+            const searchType = searchByArticle ? 'article' : searchByEmplacement ? 'Emplacement' : 'Description';
             if (this.currentUser) {
                 UserDataManager.addSearchHistory(this.currentUser.userId, this.currentUser.email, searchTerm, searchType, filteredItems.length);
             }
@@ -265,7 +252,7 @@ class UserPanel {
     clearSearch() {
         document.getElementById('searchByArticle').value = '';
         document.getElementById('searchByEmplacement').value = '';
-        document.getElementById('searchByUsine').value = '';
+        document.getElementById('searchByDescription').value = '';
         const searchResults = document.getElementById('searchResults');
         if (searchResults) {
             searchResults.innerHTML = '';

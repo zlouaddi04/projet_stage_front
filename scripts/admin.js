@@ -514,8 +514,7 @@ class AdminPanel {
                 <tr>
                     <td>${item.id}</td>
                     <td>${item.article}</td>
-                    <td>${item.Usine}</td>
-                    <td>${item.Magasin}</td>
+                    <td>${item.Description}</td>
                     <td>${item.Emplacement}</td>
                     <td>${item.Stock}</td>
                     <td>${item.Unite_Mesure || 'N/A'}</td>
