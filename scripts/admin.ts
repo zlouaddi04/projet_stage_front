@@ -1,14 +1,25 @@
 // Type definitions
 interface Item {
     id: number;
-    code: string;
-    name: string;
-    family: string;
-    location: string;
-    price: number;
-    stock: number;
-    description: string;
-    lastUpdated: string;
+    Usine: string;
+    Magasin: string;
+    article: string;
+    Emplacement: string;
+    Stock: number;
+    Description: string;
+    Unite_Mesure?: string;
+}
+
+// Backend API response interface (matches @JsonProperty annotations)
+interface BackendItem {
+    id: number;
+    usine: string;
+    magasin: string;
+    reference: string;  // maps to article
+    emplacement: string; // maps to Emplacement
+    stock: number;      // maps to Stock
+    desc: string;       // maps to Description
+    unite?: string;     // maps to Unite_Mesure
 }
 
 interface AdminUser {
@@ -20,11 +31,19 @@ interface AdminUser {
     lastLogin?: string;
 }
 
+interface BackendUser {
+    id: number;
+    name: string;
+    email?: string;
+    password: string;
+    isadmin: boolean;
+}
+
 interface UserSession {
     userId: number;
     email: string;
-    role: string;
-    name: string;
+    isAdmin: boolean;
+    username: string;
     loginTime: string;
 }
 
@@ -33,15 +52,15 @@ interface SearchHistory {
     userId: number;
     userEmail: string;
     searchTerm: string;
-    searchType: 'name' | 'code' | 'family';
+    searchType: 'article' | 'Emplacement' | 'Usine';
     resultsCount: number;
     timestamp: string;
 }
 
 interface Movement {
     id: number;
-    itemCode: string;
-    itemName: string;
+    itemArticle: string;
+    itemDescription: string;
     movementType: 'IN' | 'OUT' | 'TRANSFER' | 'ADJUSTMENT';
     quantity: number;
     fromLocation: string;
@@ -54,11 +73,11 @@ interface Movement {
 
 // Mock data
 const mockItems: Item[] = [
-    { id: 1, code: 'LH001', name: 'Portland Cement Type I', family: 'Cement', location: 'Warehouse A-1', price: 125.50, stock: 500, description: 'High quality Portland cement for general construction', lastUpdated: '2024-01-15' },
-    { id: 2, code: 'LH002', name: 'Concrete Mixer 350L', family: 'Equipment', location: 'Equipment Yard B', price: 2500.00, stock: 15, description: 'Electric concrete mixer 350L capacity', lastUpdated: '2024-01-14' },
-    { id: 3, code: 'LH003', name: 'Steel Rebar 12mm', family: 'Steel', location: 'Steel Storage C-2', price: 45.75, stock: 1200, description: 'High strength steel reinforcement bars', lastUpdated: '2024-01-16' },
-    { id: 4, code: 'LH004', name: 'Limestone Aggregate', family: 'Aggregates', location: 'Outdoor Yard D', price: 25.00, stock: 5000, description: 'Crushed limestone for concrete production', lastUpdated: '2024-01-13' },
-    { id: 5, code: 'LH005', name: 'Ready Mix Concrete', family: 'Concrete', location: 'Plant E-1', price: 95.00, stock: 0, description: 'Pre-mixed concrete for immediate use', lastUpdated: '2024-01-17' }
+    { id: 1, Usine: 'M107', Magasin: 'G200', article: 'LH001', Emplacement: 'Warehouse A-1', Stock: 500, Description: 'High quality Portland cement for general construction', Unite_Mesure: 'KG' },
+    { id: 2, Usine: 'M107', Magasin: 'G200', article: 'LH002', Emplacement: 'Equipment Yard B', Stock: 15, Description: 'Electric concrete mixer 350L capacity', Unite_Mesure: 'UNIT' },
+    { id: 3, Usine: 'M107', Magasin: 'G200', article: 'LH003', Emplacement: 'Steel Storage C-2', Stock: 1200, Description: 'High strength steel reinforcement bars', Unite_Mesure: 'M' },
+    { id: 4, Usine: 'M108', Magasin: 'G200', article: 'LH004', Emplacement: 'Outdoor Yard D', Stock: 5000, Description: 'Crushed limestone for concrete production', Unite_Mesure: 'TON' },
+    { id: 5, Usine: 'M108', Magasin: 'G201', article: 'LH005', Emplacement: 'Plant E-1', Stock: 0, Description: 'Pre-mixed concrete for immediate use', Unite_Mesure: 'M3' }
 ];
 
 const mockAdminUsers: AdminUser[] = [
@@ -69,14 +88,14 @@ const mockAdminUsers: AdminUser[] = [
 ];
 
 const mockSearchHistory: SearchHistory[] = [
-    { id: 1, userId: 2, userEmail: 'john.doe@lafargeholcim.com', searchTerm: 'cement', searchType: 'name', resultsCount: 1, timestamp: '2024-01-17T09:30:00' },
-    { id: 2, userId: 3, userEmail: 'jane.smith@lafargeholcim.com', searchTerm: 'LH003', searchType: 'code', resultsCount: 1, timestamp: '2024-01-16T15:45:00' },
-    { id: 3, userId: 2, userEmail: 'john.doe@lafargeholcim.com', searchTerm: 'Steel', searchType: 'family', resultsCount: 1, timestamp: '2024-01-16T11:20:00' }
+    { id: 1, userId: 2, userEmail: 'john.doe@lafargeholcim.com', searchTerm: 'LH001', searchType: 'article', resultsCount: 1, timestamp: '2024-01-17T09:30:00' },
+    { id: 2, userId: 3, userEmail: 'jane.smith@lafargeholcim.com', searchTerm: 'LH003', searchType: 'article', resultsCount: 1, timestamp: '2024-01-16T15:45:00' },
+    { id: 3, userId: 2, userEmail: 'john.doe@lafargeholcim.com', searchTerm: 'Warehouse', searchType: 'Emplacement', resultsCount: 1, timestamp: '2024-01-16T11:20:00' }
 ];
 
 const mockMovements: Movement[] = [
-    { id: 1, itemCode: 'LH001', itemName: 'Portland Cement Type I', movementType: 'IN', quantity: 100, fromLocation: 'Supplier', toLocation: 'Warehouse A-1', userId: 1, userEmail: 'admin@lafargeholcim.com', timestamp: '2024-01-15T08:00:00', notes: 'New stock delivery' },
-    { id: 2, itemCode: 'LH003', itemName: 'Steel Rebar 12mm', movementType: 'OUT', quantity: 50, fromLocation: 'Steel Storage C-2', toLocation: 'Project Site 1', userId: 2, userEmail: 'john.doe@lafargeholcim.com', timestamp: '2024-01-16T10:30:00', notes: 'Site delivery for Foundation work' }
+    { id: 1, itemArticle: 'LH001', itemDescription: 'High quality Portland cement', movementType: 'IN', quantity: 100, fromLocation: 'Supplier', toLocation: 'Warehouse A-1', userId: 1, userEmail: 'admin@lafargeholcim.com', timestamp: '2024-01-15T08:00:00', notes: 'New stock delivery' },
+    { id: 2, itemArticle: 'LH003', itemDescription: 'High strength steel reinforcement bars', movementType: 'OUT', quantity: 50, fromLocation: 'Steel Storage C-2', toLocation: 'Project Site 1', userId: 2, userEmail: 'john.doe@lafargeholcim.com', timestamp: '2024-01-16T10:30:00', notes: 'Site delivery for Foundation work' }
 ];
 
 // Data management class
@@ -85,19 +104,82 @@ class DataManager {
     private static readonly USERS_KEY = 'lafarge_users';
     private static readonly SEARCH_HISTORY_KEY = 'lafarge_search_history';
     private static readonly MOVEMENTS_KEY = 'lafarge_movements';
+    private static readonly API_BASE_URL = 'http://localhost:8080';
 
-    static initializeData(): void {
-        if (!localStorage.getItem(this.ITEMS_KEY)) {
-            localStorage.setItem(this.ITEMS_KEY, JSON.stringify(mockItems));
+    static async initializeData(): Promise<void> {
+        // Load data from API and cache it
+        try {
+            await this.loadItemsFromAPI();
+            await this.loadUsersFromAPI();
+        } catch (error) {
+            console.error('Failed to load data from API, using cached data:', error);
+            // Fallback to existing cached data or mock data
+            if (!localStorage.getItem(this.ITEMS_KEY)) {
+                localStorage.setItem(this.ITEMS_KEY, JSON.stringify(mockItems));
+            }
+            if (!localStorage.getItem(this.USERS_KEY)) {
+                localStorage.setItem(this.USERS_KEY, JSON.stringify(mockAdminUsers));
+            }
         }
-        if (!localStorage.getItem(this.USERS_KEY)) {
-            localStorage.setItem(this.USERS_KEY, JSON.stringify(mockAdminUsers));
-        }
+        
+        // Initialize local data that doesn't come from API
         if (!localStorage.getItem(this.SEARCH_HISTORY_KEY)) {
             localStorage.setItem(this.SEARCH_HISTORY_KEY, JSON.stringify(mockSearchHistory));
         }
         if (!localStorage.getItem(this.MOVEMENTS_KEY)) {
             localStorage.setItem(this.MOVEMENTS_KEY, JSON.stringify(mockMovements));
+        }
+    }
+
+    static async loadItemsFromAPI(): Promise<void> {
+        try {
+            const response = await fetch(`${this.API_BASE_URL}/Pieces/getall`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const backendItems: BackendItem[] = await response.json();
+            
+            // Convert backend format to frontend format
+            const convertedItems: Item[] = backendItems.map(backendItem => ({
+                id: backendItem.id,
+                Usine: backendItem.usine,
+                Magasin: backendItem.magasin,
+                article: backendItem.reference,
+                Emplacement: backendItem.emplacement,
+                Stock: backendItem.stock,
+                Description: backendItem.desc,
+                Unite_Mesure: backendItem.unite
+            }));
+            
+            localStorage.setItem(this.ITEMS_KEY, JSON.stringify(convertedItems));
+            console.log('Items loaded from API:', convertedItems.length);
+        } catch (error) {
+            console.error('Failed to load items from API:', error);
+            throw error;
+        }
+    }
+
+    static async loadUsersFromAPI(): Promise<void> {
+        try {
+            const response = await fetch(`${this.API_BASE_URL}/users/getall`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const backendUsers: BackendUser[] = await response.json();
+            // Convert the backend user format to frontend format
+            const convertedUsers: AdminUser[] = backendUsers.map(user => ({
+                id: user.id,
+                name: user.name,
+                email: user.email || '',
+                role: user.isadmin ? 'admin' : 'user',
+                status: 'active' as const,
+                lastLogin: undefined
+            }));
+            localStorage.setItem(this.USERS_KEY, JSON.stringify(convertedUsers));
+            console.log('Users loaded from API:', convertedUsers.length);
+        } catch (error) {
+            console.error('Failed to load users from API:', error);
+            throw error;
         }
     }
 
@@ -133,7 +215,7 @@ class DataManager {
         localStorage.setItem(this.MOVEMENTS_KEY, JSON.stringify(movements));
     }
 
-    static addSearchHistory(userId: number, userEmail: string, searchTerm: string, searchType: 'name' | 'code' | 'family', resultsCount: number): void {
+    static addSearchHistory(userId: number, userEmail: string, searchTerm: string, searchType: 'article' | 'Emplacement' | 'Usine', resultsCount: number): void {
         const history = this.getSearchHistory();
         const newEntry: SearchHistory = {
             id: history.length + 1,
@@ -147,6 +229,18 @@ class DataManager {
         history.push(newEntry);
         this.saveSearchHistory(history);
     }
+
+    // Method to refresh data from API
+    static async refreshData(): Promise<void> {
+        try {
+            await this.loadItemsFromAPI();
+            await this.loadUsersFromAPI();
+            console.log('Data refreshed from API');
+        } catch (error) {
+            console.error('Failed to refresh data from API:', error);
+            throw error;
+        }
+    }
 }
 
 // Admin panel controller class
@@ -156,15 +250,97 @@ class AdminPanel {
 
     constructor() {
         this.currentUser = this.getCurrentUser();
-        if (!this.currentUser || this.currentUser.role !== 'admin') {
+        if (!this.currentUser || !this.currentUser.isAdmin) {
             this.redirectToLogin();
             return;
         }
         
-        DataManager.initializeData();
-        this.initializeEventListeners();
-        this.updateUserDisplay();
-        this.loadDashboard();
+        this.initializeApp();
+    }
+
+    private async initializeApp(): Promise<void> {
+        try {
+            // Show loading indicator
+            this.showLoading();
+            
+            // Initialize data from API
+            await DataManager.initializeData();
+            
+            // Initialize the app
+            this.initializeEventListeners();
+            this.updateUserDisplay();
+            this.loadDashboard();
+            
+            // Hide loading indicator
+            this.hideLoading();
+        } catch (error) {
+            console.error('Failed to initialize app:', error);
+            // Still try to load with cached data
+            this.initializeEventListeners();
+            this.updateUserDisplay();
+            this.loadDashboard();
+            this.hideLoading();
+            
+            // Show error message to user
+            this.showErrorMessage('Failed to load latest data from server. Using cached data.');
+        }
+    }
+
+    private showLoading(): void {
+        // Create or show loading indicator
+        let loadingEl = document.getElementById('loadingIndicator');
+        if (!loadingEl) {
+            loadingEl = document.createElement('div');
+            loadingEl.id = 'loadingIndicator';
+            loadingEl.innerHTML = `
+                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 9999;">
+                    <div style="background: white; padding: 20px; border-radius: 8px; text-align: center;">
+                        <div style="margin-bottom: 10px;">Loading...</div>
+                        <div style="width: 50px; height: 50px; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+                    </div>
+                </div>
+                <style>
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+                </style>
+            `;
+            document.body.appendChild(loadingEl);
+        }
+        loadingEl.style.display = 'block';
+    }
+
+    private hideLoading(): void {
+        const loadingEl = document.getElementById('loadingIndicator');
+        if (loadingEl) {
+            loadingEl.style.display = 'none';
+        }
+    }
+
+    private showErrorMessage(message: string): void {
+        // Create a temporary error message
+        const errorEl = document.createElement('div');
+        errorEl.style.cssText = `
+            position: fixed; 
+            top: 20px; 
+            right: 20px; 
+            background: #ff6b6b; 
+            color: white; 
+            padding: 15px 20px; 
+            border-radius: 5px; 
+            z-index: 10000;
+            font-family: Arial, sans-serif;
+        `;
+        errorEl.textContent = message;
+        document.body.appendChild(errorEl);
+        
+        // Remove after 5 seconds
+        setTimeout(() => {
+            if (errorEl.parentNode) {
+                errorEl.parentNode.removeChild(errorEl);
+            }
+        }, 5000);
     }
 
     private getCurrentUser(): UserSession | null {
@@ -193,6 +369,10 @@ class AdminPanel {
         const logoutBtn = document.getElementById('logoutBtn');
         logoutBtn?.addEventListener('click', this.logout.bind(this));
 
+        // Refresh data button
+        const refreshBtn = document.getElementById('refreshDataBtn');
+        refreshBtn?.addEventListener('click', this.refreshData.bind(this));
+
         // Search functionality
         const searchBtn = document.getElementById('searchBtn');
         const clearSearchBtn = document.getElementById('clearSearchBtn');
@@ -201,6 +381,61 @@ class AdminPanel {
 
         // Modal handlers
         this.initializeModals();
+    }
+
+    private async refreshData(): Promise<void> {
+        try {
+            this.showLoading();
+            await DataManager.refreshData();
+            
+            // Refresh current section
+            switch (this.currentSection) {
+                case 'dashboard':
+                    this.loadDashboard();
+                    break;
+                case 'items':
+                    this.loadItems();
+                    break;
+                case 'users':
+                    this.loadUsers();
+                    break;
+                case 'search':
+                    this.loadSearch();
+                    break;
+                default:
+                    break;
+            }
+            
+            this.hideLoading();
+            this.showSuccessMessage('Data refreshed successfully!');
+        } catch (error) {
+            this.hideLoading();
+            this.showErrorMessage('Failed to refresh data from server.');
+            console.error('Refresh failed:', error);
+        }
+    }
+
+    private showSuccessMessage(message: string): void {
+        const successEl = document.createElement('div');
+        successEl.style.cssText = `
+            position: fixed; 
+            top: 20px; 
+            right: 20px; 
+            background: #51cf66; 
+            color: white; 
+            padding: 15px 20px; 
+            border-radius: 5px; 
+            z-index: 10000;
+            font-family: Arial, sans-serif;
+        `;
+        successEl.textContent = message;
+        document.body.appendChild(successEl);
+        
+        setTimeout(() => {
+            if (successEl.parentNode) {
+                successEl.parentNode.removeChild(successEl);
+            }
+        }, 3000);
     }
 
     private initializeModals(): void {
@@ -242,7 +477,7 @@ class AdminPanel {
     private updateUserDisplay(): void {
         const adminUserName = document.getElementById('adminUserName');
         if (adminUserName && this.currentUser) {
-            adminUserName.textContent = `Welcome, ${this.currentUser.name}`;
+            adminUserName.textContent = `Welcome, ${this.currentUser.username}`;
         }
     }
 
@@ -331,7 +566,7 @@ class AdminPanel {
         recentMovements.forEach(m => {
             activityHTML += `
                 <div class="activity-item">
-                    <p><strong>Movement:</strong> ${m.userEmail} recorded ${m.movementType} for ${m.itemCode}</p>
+                    <p><strong>Movement:</strong> ${m.userEmail} recorded ${m.movementType} for ${m.itemArticle}</p>
                     <span class="activity-time">${this.formatDateTime(m.timestamp)}</span>
                 </div>
             `;
@@ -345,48 +580,48 @@ class AdminPanel {
     }
 
     private loadSearch(): void {
-        // Populate item families dropdown
+        // Populate item usines dropdown
         const items = DataManager.getItems();
-        const families = [...new Set(items.map(item => item.family))];
+        const usines = [...new Set(items.map(item => item.Usine))];
         
-        const familySelect = document.getElementById('searchByFamily') as HTMLSelectElement;
-        if (familySelect) {
-            familySelect.innerHTML = '<option value="">All Families</option>';
-            families.forEach(family => {
-                familySelect.innerHTML += `<option value="${family}">${family}</option>`;
+        const usineSelect = document.getElementById('searchByUsine') as HTMLSelectElement;
+        if (usineSelect) {
+            usineSelect.innerHTML = '<option value="">All Usines</option>';
+            usines.forEach(usine => {
+                usineSelect.innerHTML += `<option value="${usine}">${usine}</option>`;
             });
         }
     }
 
     private handleSearch(): void {
-        const searchByName = (document.getElementById('searchByName') as HTMLInputElement).value.trim();
-        const searchByCode = (document.getElementById('searchByCode') as HTMLInputElement).value.trim();
-        const searchByFamily = (document.getElementById('searchByFamily') as HTMLSelectElement).value;
+        const searchByArticle = (document.getElementById('searchByArticle') as HTMLInputElement).value.trim();
+        const searchByEmplacement = (document.getElementById('searchByEmplacement') as HTMLInputElement).value.trim();
+        const searchByUsine = (document.getElementById('searchByUsine') as HTMLSelectElement).value;
 
         const items = DataManager.getItems();
         let filteredItems = items;
 
-        if (searchByName) {
+        if (searchByArticle) {
             filteredItems = filteredItems.filter(item => 
-                item.name.toLowerCase().includes(searchByName.toLowerCase())
+                item.article.toLowerCase().includes(searchByArticle.toLowerCase())
             );
         }
 
-        if (searchByCode) {
+        if (searchByEmplacement) {
             filteredItems = filteredItems.filter(item => 
-                item.code.toLowerCase().includes(searchByCode.toLowerCase())
+                item.Emplacement.toLowerCase().includes(searchByEmplacement.toLowerCase())
             );
         }
 
-        if (searchByFamily) {
-            filteredItems = filteredItems.filter(item => item.family === searchByFamily);
+        if (searchByUsine) {
+            filteredItems = filteredItems.filter(item => item.Usine === searchByUsine);
         }
 
         this.displaySearchResults(filteredItems);
 
         // Record search history
-        const searchTerm = searchByName || searchByCode || searchByFamily;
-        const searchType = searchByName ? 'name' : searchByCode ? 'code' : 'family';
+        const searchTerm = searchByArticle || searchByEmplacement || searchByUsine;
+        const searchType = searchByArticle ? 'article' : searchByEmplacement ? 'Emplacement' : 'Usine';
         
         if (searchTerm && this.currentUser) {
             DataManager.addSearchHistory(
@@ -412,31 +647,35 @@ class AdminPanel {
         items.forEach(item => {
             resultsHTML += `
                 <div class="search-result-item">
-                    <h3>${item.name} (${item.code})</h3>
+                    <h3>${item.article}</h3>
                     <div class="search-result-details">
                         <div class="detail-item">
-                            <span class="detail-label">Code</span>
-                            <span class="detail-value">${item.code}</span>
+                            <span class="detail-label">Article</span>
+                            <span class="detail-value">${item.article}</span>
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">Family</span>
-                            <span class="detail-value">${item.family}</span>
+                            <span class="detail-label">Usine</span>
+                            <span class="detail-value">${item.Usine}</span>
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">Location</span>
-                            <span class="detail-value">${item.location}</span>
+                            <span class="detail-label">Magasin</span>
+                            <span class="detail-value">${item.Magasin}</span>
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">Price</span>
-                            <span class="detail-value">$${item.price.toFixed(2)}</span>
+                            <span class="detail-label">Emplacement</span>
+                            <span class="detail-value">${item.Emplacement}</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Stock</span>
-                            <span class="detail-value">${item.stock}</span>
+                            <span class="detail-value">${item.Stock}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Unité de Mesure</span>
+                            <span class="detail-value">${item.Unite_Mesure || 'N/A'}</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Description</span>
-                            <span class="detail-value">${item.description}</span>
+                            <span class="detail-value">${item.Description}</span>
                         </div>
                     </div>
                 </div>
@@ -447,9 +686,9 @@ class AdminPanel {
     }
 
     private clearSearch(): void {
-        (document.getElementById('searchByName') as HTMLInputElement).value = '';
-        (document.getElementById('searchByCode') as HTMLInputElement).value = '';
-        (document.getElementById('searchByFamily') as HTMLSelectElement).value = '';
+        (document.getElementById('searchByArticle') as HTMLInputElement).value = '';
+        (document.getElementById('searchByEmplacement') as HTMLInputElement).value = '';
+        (document.getElementById('searchByUsine') as HTMLSelectElement).value = '';
         
         const searchResults = document.getElementById('searchResults');
         if (searchResults) {
@@ -466,12 +705,13 @@ class AdminPanel {
         items.forEach(item => {
             tableHTML += `
                 <tr>
-                    <td>${item.code}</td>
-                    <td>${item.name}</td>
-                    <td>${item.family}</td>
-                    <td>${item.location}</td>
-                    <td>$${item.price.toFixed(2)}</td>
-                    <td>${item.stock}</td>
+                    <td>${item.id}</td>
+                    <td>${item.article}</td>
+                    <td>${item.Usine}</td>
+                    <td>${item.Magasin}</td>
+                    <td>${item.Emplacement}</td>
+                    <td>${item.Stock}</td>
+                    <td>${item.Unite_Mesure || 'N/A'}</td>
                     <td>
                         <button class="edit-btn" onclick="adminPanel.editItem(${item.id})">Edit</button>
                         <button class="delete-btn" onclick="adminPanel.deleteItem(${item.id})">Delete</button>
@@ -576,8 +816,8 @@ class AdminPanel {
             tableHTML += `
                 <tr>
                     <td>${this.formatDateTime(m.timestamp)}</td>
-                    <td>${m.itemCode}</td>
-                    <td>${m.itemName}</td>
+                    <td>${m.itemArticle}</td>
+                    <td>${m.itemDescription}</td>
                     <td>${m.movementType}</td>
                     <td>${m.quantity}</td>
                     <td>${m.fromLocation}</td>
@@ -598,29 +838,32 @@ class AdminPanel {
         if (item) {
             modalTitle!.textContent = 'Edit Item';
             // Populate form with item data
-            (document.getElementById('itemCode') as HTMLInputElement).value = item.code;
-            (document.getElementById('itemName') as HTMLInputElement).value = item.name;
-            (document.getElementById('itemLocation') as HTMLInputElement).value = item.location;
-            (document.getElementById('itemPrice') as HTMLInputElement).value = item.price.toString();
-            (document.getElementById('itemStock') as HTMLInputElement).value = item.stock.toString();
-            (document.getElementById('itemDescription') as HTMLTextAreaElement).value = item.description;
+            (document.getElementById('itemArticle') as HTMLInputElement).value = item.article;
+            (document.getElementById('itemUsine') as HTMLInputElement).value = item.Usine;
+            (document.getElementById('itemMagasin') as HTMLInputElement).value = item.Magasin;
+            (document.getElementById('itemEmplacement') as HTMLInputElement).value = item.Emplacement;
+            (document.getElementById('itemStock') as HTMLInputElement).value = item.Stock.toString();
+            (document.getElementById('itemDescription') as HTMLTextAreaElement).value = item.Description;
+            (document.getElementById('itemUniteMesure') as HTMLInputElement).value = item.Unite_Mesure || '';
         } else {
             modalTitle!.textContent = 'Add Item';
             form.reset();
         }
 
-        // Populate family dropdown
+        // Populate usine dropdown
         const items = DataManager.getItems();
-        const families = [...new Set(items.map(i => i.family))];
-        const familySelect = document.getElementById('itemFamily') as HTMLSelectElement;
-        familySelect.innerHTML = '';
-        families.forEach(family => {
-            familySelect.innerHTML += `<option value="${family}">${family}</option>`;
-        });
-        familySelect.innerHTML += '<option value="new">Add New Family...</option>';
+        const usines = [...new Set(items.map(i => i.Usine))];
+        const usineSelect = document.getElementById('itemUsineSelect') as HTMLSelectElement;
+        if (usineSelect) {
+            usineSelect.innerHTML = '';
+            usines.forEach(usine => {
+                usineSelect.innerHTML += `<option value="${usine}">${usine}</option>`;
+            });
+            usineSelect.innerHTML += '<option value="new">Add New Usine...</option>';
 
-        if (item) {
-            familySelect.value = item.family;
+            if (item) {
+                usineSelect.value = item.Usine;
+            }
         }
 
         modal!.style.display = 'flex';

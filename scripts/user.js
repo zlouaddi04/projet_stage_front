@@ -1,6 +1,29 @@
-// Data management class
+"use strict";
 class UserDataManager {
-    static getItems() {
+    static async getItems() {
+        try {
+            await this.loadItemsFromAPI();
+        }
+        catch (error) {
+            console.warn('Failed to load items from API, using cached data:', error);
+        }
+        return JSON.parse(localStorage.getItem(this.ITEMS_KEY) || '[]');
+    }
+    static async loadItemsFromAPI() {
+        try {
+            const response = await fetch(`${this.API_BASE_URL}/Pieces/getall`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const items = await response.json();
+            localStorage.setItem(this.ITEMS_KEY, JSON.stringify(items));
+        }
+        catch (error) {
+            console.error('Failed to load items from API:', error);
+            throw error;
+        }
+    }
+    static getItemsSync() {
         return JSON.parse(localStorage.getItem(this.ITEMS_KEY) || '[]');
     }
     static getSearchHistory() {
@@ -26,12 +49,12 @@ class UserDataManager {
 }
 UserDataManager.ITEMS_KEY = 'lafarge_items';
 UserDataManager.SEARCH_HISTORY_KEY = 'lafarge_search_history';
-// User panel class
+UserDataManager.API_BASE_URL = 'http://localhost:8080';
 class UserPanel {
     constructor() {
         this.currentSection = 'search';
         this.currentUser = this.getCurrentUser();
-        if (!this.currentUser || this.currentUser.role !== 'user') {
+        if (!this.currentUser || this.currentUser.isAdmin) {
             this.redirectToLogin();
             return;
         }
@@ -47,36 +70,29 @@ class UserPanel {
         window.location.href = 'index.html';
     }
     initializeEventListeners() {
-        // Sidebar navigation
         const menuItems = document.querySelectorAll('.menu-item');
         menuItems.forEach(item => {
-            item.addEventListener('click', (e) => {
+            item.addEventListener('click', async (e) => {
                 e.preventDefault();
                 const section = item.getAttribute('data-section');
                 if (section) {
-                    this.switchSection(section);
+                    await this.switchSection(section);
                 }
             });
         });
-        // Logout
         const logoutBtn = document.getElementById('logoutBtn');
-        logoutBtn === null || logoutBtn === void 0 ? void 0 : logoutBtn.addEventListener('click', this.logout.bind(this));
-        // Search functionality
+        logoutBtn?.addEventListener('click', this.logout.bind(this));
         const searchBtn = document.getElementById('searchBtn');
         const clearSearchBtn = document.getElementById('clearSearchBtn');
-        searchBtn === null || searchBtn === void 0 ? void 0 : searchBtn.addEventListener('click', this.handleSearch.bind(this));
-        clearSearchBtn === null || clearSearchBtn === void 0 ? void 0 : clearSearchBtn.addEventListener('click', this.clearSearch.bind(this));
-        // History filter
+        searchBtn?.addEventListener('click', this.handleSearch.bind(this));
+        clearSearchBtn?.addEventListener('click', this.clearSearch.bind(this));
         const filterHistoryBtn = document.getElementById('filterHistoryBtn');
-        filterHistoryBtn === null || filterHistoryBtn === void 0 ? void 0 : filterHistoryBtn.addEventListener('click', this.filterHistory.bind(this));
-        // Password reset
+        filterHistoryBtn?.addEventListener('click', this.filterHistory.bind(this));
         const requestPasswordResetBtn = document.getElementById('requestPasswordResetBtn');
-        requestPasswordResetBtn === null || requestPasswordResetBtn === void 0 ? void 0 : requestPasswordResetBtn.addEventListener('click', this.requestPasswordReset.bind(this));
-        // Mobile menu toggle
+        requestPasswordResetBtn?.addEventListener('click', this.requestPasswordReset.bind(this));
         this.addMobileMenuToggle();
     }
     addMobileMenuToggle() {
-        // Create mobile menu toggle button
         const toggleBtn = document.createElement('button');
         toggleBtn.className = 'menu-toggle';
         toggleBtn.innerHTML = '☰';
@@ -85,41 +101,38 @@ class UserPanel {
     }
     toggleMobileMenu() {
         const sidebar = document.querySelector('.sidebar');
-        sidebar === null || sidebar === void 0 ? void 0 : sidebar.classList.toggle('active');
+        sidebar?.classList.toggle('active');
     }
     updateUserDisplay() {
         const userName = document.getElementById('userName');
-        if (userName) {
-            userName.textContent = `Welcome, ${this.currentUser.name}`;
+        if (userName && this.currentUser) {
+            userName.textContent = `Welcome, ${this.currentUser.username}`;
         }
-        // Update profile form
         const profileName = document.getElementById('profileName');
         const profileEmail = document.getElementById('profileEmail');
         const profileRole = document.getElementById('profileRole');
-        if (profileName)
-            profileName.value = this.currentUser.name;
-        if (profileEmail)
-            profileEmail.value = this.currentUser.email;
-        if (profileRole)
-            profileRole.value = this.currentUser.role;
+        if (this.currentUser) {
+            if (profileName)
+                profileName.value = this.currentUser.username;
+            if (profileEmail)
+                profileEmail.value = this.currentUser.email;
+            if (profileRole)
+                profileRole.value = this.currentUser.isAdmin ? 'admin' : 'user';
+        }
     }
-    switchSection(section) {
-        // Hide all sections
+    async switchSection(section) {
         const sections = document.querySelectorAll('.content-section');
         sections.forEach(s => s.classList.remove('active'));
-        // Show selected section
         const targetSection = document.getElementById(section);
-        targetSection === null || targetSection === void 0 ? void 0 : targetSection.classList.add('active');
-        // Update menu items
+        targetSection?.classList.add('active');
         const menuItems = document.querySelectorAll('.menu-item');
         menuItems.forEach(item => item.classList.remove('active'));
         const activeItem = document.querySelector(`[data-section="${section}"]`);
-        activeItem === null || activeItem === void 0 ? void 0 : activeItem.classList.add('active');
+        activeItem?.classList.add('active');
         this.currentSection = section;
-        // Load section content
         switch (section) {
             case 'search':
-                this.loadSearch();
+                await this.loadSearch();
                 break;
             case 'history':
                 this.loadHistory();
@@ -128,52 +141,69 @@ class UserPanel {
                 this.loadProfile();
                 break;
         }
-        // Close mobile menu after selection
         const sidebar = document.querySelector('.sidebar');
-        sidebar === null || sidebar === void 0 ? void 0 : sidebar.classList.remove('active');
+        sidebar?.classList.remove('active');
     }
-    loadSearch() {
-        // Populate item families dropdown
-        const items = UserDataManager.getItems();
-        const families = [...new Set(items.map(item => item.family))];
-        const familySelect = document.getElementById('searchByFamily');
-        if (familySelect) {
-            familySelect.innerHTML = '<option value="">All Families</option>';
-            families.forEach(family => {
-                familySelect.innerHTML += `<option value="${family}">${family}</option>`;
-            });
+    async loadSearch() {
+        try {
+            const items = await UserDataManager.getItems();
+            const usines = [...new Set(items.map(item => item.Usine))];
+            const usineSelect = document.getElementById('searchByUsine');
+            if (usineSelect) {
+                usineSelect.innerHTML = '<option value="">All Usines</option>';
+                usines.forEach(usine => {
+                    usineSelect.innerHTML += `<option value="${usine}">${usine}</option>`;
+                });
+            }
         }
-        // Clear any previous search results
+        catch (error) {
+            console.error('Failed to load search data:', error);
+            const items = UserDataManager.getItemsSync();
+            const usines = [...new Set(items.map(item => item.Usine))];
+            const usineSelect = document.getElementById('searchByUsine');
+            if (usineSelect) {
+                usineSelect.innerHTML = '<option value="">All Usines</option>';
+                usines.forEach(usine => {
+                    usineSelect.innerHTML += `<option value="${usine}">${usine}</option>`;
+                });
+            }
+        }
         const searchResults = document.getElementById('searchResults');
         if (searchResults) {
             searchResults.innerHTML = '';
         }
     }
-    handleSearch() {
-        const searchByName = document.getElementById('searchByName').value.trim();
-        const searchByCode = document.getElementById('searchByCode').value.trim();
-        const searchByFamily = document.getElementById('searchByFamily').value;
-        // Validate that at least one search criteria is provided
-        if (!searchByName && !searchByCode && !searchByFamily) {
+    async handleSearch() {
+        const searchByArticle = document.getElementById('searchByArticle').value.trim();
+        const searchByEmplacement = document.getElementById('searchByEmplacement').value.trim();
+        const searchByUsine = document.getElementById('searchByUsine').value;
+        if (!searchByArticle && !searchByEmplacement && !searchByUsine) {
             alert('Please provide at least one search criteria.');
             return;
         }
-        const items = UserDataManager.getItems();
-        let filteredItems = items;
-        if (searchByName) {
-            filteredItems = filteredItems.filter(item => item.name.toLowerCase().includes(searchByName.toLowerCase()));
+        try {
+            const items = await UserDataManager.getItems();
+            let filteredItems = items;
+            if (searchByArticle) {
+                filteredItems = filteredItems.filter(item => item.article.toLowerCase().includes(searchByArticle.toLowerCase()));
+            }
+            if (searchByEmplacement) {
+                filteredItems = filteredItems.filter(item => item.Emplacement.toLowerCase().includes(searchByEmplacement.toLowerCase()));
+            }
+            if (searchByUsine) {
+                filteredItems = filteredItems.filter(item => item.Usine === searchByUsine);
+            }
+            this.displaySearchResults(filteredItems);
+            const searchTerm = searchByArticle || searchByEmplacement || searchByUsine;
+            const searchType = searchByArticle ? 'article' : searchByEmplacement ? 'Emplacement' : 'Usine';
+            if (this.currentUser) {
+                UserDataManager.addSearchHistory(this.currentUser.userId, this.currentUser.email, searchTerm, searchType, filteredItems.length);
+            }
         }
-        if (searchByCode) {
-            filteredItems = filteredItems.filter(item => item.code.toLowerCase().includes(searchByCode.toLowerCase()));
+        catch (error) {
+            console.error('Search failed:', error);
+            alert('Search failed. Please try again.');
         }
-        if (searchByFamily) {
-            filteredItems = filteredItems.filter(item => item.family === searchByFamily);
-        }
-        this.displaySearchResults(filteredItems);
-        // Record search history
-        const searchTerm = searchByName || searchByCode || searchByFamily;
-        const searchType = searchByName ? 'name' : searchByCode ? 'code' : 'family';
-        UserDataManager.addSearchHistory(this.currentUser.userId, this.currentUser.email, searchTerm, searchType, filteredItems.length);
     }
     displaySearchResults(items) {
         const searchResults = document.getElementById('searchResults');
@@ -191,35 +221,39 @@ class UserPanel {
         }
         let resultsHTML = `<h2>Search Results (${items.length} item${items.length > 1 ? 's' : ''} found)</h2>`;
         items.forEach(item => {
-            const stockStatus = item.stock > 0 ? 'In Stock' : 'Out of Stock';
-            const stockClass = item.stock > 0 ? 'in-stock' : 'out-of-stock';
+            const stockStatus = item.Stock > 0 ? 'In Stock' : 'Out of Stock';
+            const stockClass = item.Stock > 0 ? 'in-stock' : 'out-of-stock';
             resultsHTML += `
                 <div class="search-result-item">
-                    <h3>${item.name} <span class="item-code">(${item.code})</span></h3>
+                    <h3>${item.article}</h3>
                     <div class="search-result-details">
                         <div class="detail-item">
-                            <span class="detail-label">Item Code</span>
-                            <span class="detail-value">${item.code}</span>
+                            <span class="detail-label">Article</span>
+                            <span class="detail-value">${item.article}</span>
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">Family</span>
-                            <span class="detail-value">${item.family}</span>
+                            <span class="detail-label">Usine</span>
+                            <span class="detail-value">${item.Usine}</span>
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">Location</span>
-                            <span class="detail-value location-highlight">${item.location}</span>
+                            <span class="detail-label">Magasin</span>
+                            <span class="detail-value">${item.Magasin}</span>
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">Price</span>
-                            <span class="detail-value price-value">$${item.price.toFixed(2)}</span>
+                            <span class="detail-label">Emplacement</span>
+                            <span class="detail-value location-highlight">${item.Emplacement}</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Stock Status</span>
-                            <span class="detail-value ${stockClass}">${stockStatus} (${item.stock})</span>
+                            <span class="detail-value ${stockClass}">${stockStatus} (${item.Stock})</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Unité de Mesure</span>
+                            <span class="detail-value">${item.Unite_Mesure || 'N/A'}</span>
                         </div>
                         <div class="detail-item description-item">
                             <span class="detail-label">Description</span>
-                            <span class="detail-value">${item.description}</span>
+                            <span class="detail-value">${item.Description}</span>
                         </div>
                     </div>
                 </div>
@@ -228,15 +262,17 @@ class UserPanel {
         searchResults.innerHTML = resultsHTML;
     }
     clearSearch() {
-        document.getElementById('searchByName').value = '';
-        document.getElementById('searchByCode').value = '';
-        document.getElementById('searchByFamily').value = '';
+        document.getElementById('searchByArticle').value = '';
+        document.getElementById('searchByEmplacement').value = '';
+        document.getElementById('searchByUsine').value = '';
         const searchResults = document.getElementById('searchResults');
         if (searchResults) {
             searchResults.innerHTML = '';
         }
     }
     loadHistory() {
+        if (!this.currentUser)
+            return;
         const history = UserDataManager.getSearchHistory();
         const userHistory = history.filter(h => h.userId === this.currentUser.userId);
         this.displayHistory(userHistory);
@@ -257,7 +293,6 @@ class UserPanel {
             return;
         }
         let tableHTML = '';
-        // Sort by timestamp descending (most recent first)
         const sortedHistory = history.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
         sortedHistory.forEach(h => {
             const searchTypeDisplay = h.searchType.charAt(0).toUpperCase() + h.searchType.slice(1);
@@ -274,6 +309,8 @@ class UserPanel {
         tableBody.innerHTML = tableHTML;
     }
     filterHistory() {
+        if (!this.currentUser)
+            return;
         const dateFrom = document.getElementById('historyDateFrom').value;
         const dateTo = document.getElementById('historyDateTo').value;
         let history = UserDataManager.getSearchHistory();
@@ -288,16 +325,12 @@ class UserPanel {
         this.displayHistory(filteredHistory);
     }
     loadProfile() {
-        // Profile is already loaded in updateUserDisplay
-        // This method can be used for any additional profile-specific logic
     }
     requestPasswordReset() {
         const resetSuccessMessage = document.getElementById('resetSuccessMessage');
-        // Simulate password reset request
         if (resetSuccessMessage) {
             resetSuccessMessage.textContent = 'Password reset request has been sent to your email address. Please check your inbox for further instructions.';
             resetSuccessMessage.style.display = 'block';
-            // Hide message after 10 seconds
             setTimeout(() => {
                 resetSuccessMessage.style.display = 'none';
             }, 10000);
@@ -320,15 +353,13 @@ class UserPanel {
         }
     }
 }
-// Initialize user panel when DOM is loaded
 let userPanel;
 document.addEventListener('DOMContentLoaded', () => {
     userPanel = new UserPanel();
 });
-// Handle window resize for mobile responsiveness
 window.addEventListener('resize', () => {
     const sidebar = document.querySelector('.sidebar');
     if (window.innerWidth > 1024) {
-        sidebar === null || sidebar === void 0 ? void 0 : sidebar.classList.remove('active');
+        sidebar?.classList.remove('active');
     }
 });

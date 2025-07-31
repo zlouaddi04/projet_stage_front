@@ -1,21 +1,20 @@
 // Type definitions
 interface Item {
     id: number;
-    code: string;
-    name: string;
-    family: string;
-    location: string;
-    price: number;
-    stock: number;
-    description: string;
-    lastUpdated: string;
+    Usine: string;
+    Magasin: string;
+    article: string;
+    Emplacement: string;
+    Stock: number;
+    Description: string;
+    Unite_Mesure?: string;
 }
 
 interface UserSession {
     userId: number;
     email: string;
-    role: string;
-    name: string;
+    isAdmin: boolean;
+    username: string;
     loginTime: string;
 }
 
@@ -24,7 +23,7 @@ interface UserSearchHistory {
     userId: number;
     userEmail: string;
     searchTerm: string;
-    searchType: 'name' | 'code' | 'family';
+    searchType: 'article' | 'Emplacement' | 'Usine';
     resultsCount: number;
     timestamp: string;
 }
@@ -33,8 +32,33 @@ interface UserSearchHistory {
 class UserDataManager {
     private static readonly ITEMS_KEY = 'lafarge_items';
     private static readonly SEARCH_HISTORY_KEY = 'lafarge_search_history';
+    private static readonly API_BASE_URL = 'http://localhost:8080';
 
-    static getItems(): Item[] {
+    static async getItems(): Promise<Item[]> {
+        try {
+            // Try to get fresh data from API
+            await this.loadItemsFromAPI();
+        } catch (error) {
+            console.warn('Failed to load items from API, using cached data:', error);
+        }
+        return JSON.parse(localStorage.getItem(this.ITEMS_KEY) || '[]');
+    }
+
+    static async loadItemsFromAPI(): Promise<void> {
+        try {
+            const response = await fetch(`${this.API_BASE_URL}/Pieces/getall`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const items: Item[] = await response.json();
+            localStorage.setItem(this.ITEMS_KEY, JSON.stringify(items));
+        } catch (error) {
+            console.error('Failed to load items from API:', error);
+            throw error;
+        }
+    }
+
+    static getItemsSync(): Item[] {
         return JSON.parse(localStorage.getItem(this.ITEMS_KEY) || '[]');
     }
 
@@ -46,7 +70,7 @@ class UserDataManager {
         localStorage.setItem(this.SEARCH_HISTORY_KEY, JSON.stringify(history));
     }
 
-    static addSearchHistory(userId: number, userEmail: string, searchTerm: string, searchType: 'name' | 'code' | 'family', resultsCount: number): void {
+    static addSearchHistory(userId: number, userEmail: string, searchTerm: string, searchType: 'article' | 'Emplacement' | 'Usine', resultsCount: number): void {
         const history = this.getSearchHistory();
         const newEntry: UserSearchHistory = {
             id: history.length + 1,
@@ -69,14 +93,14 @@ class UserPanel {
 
     constructor() {
         this.currentUser = this.getCurrentUser();
-        if (!this.currentUser || this.currentUser.role !== 'user') {
+        if (!this.currentUser || this.currentUser.isAdmin) {
             this.redirectToLogin();
             return;
         }
         
         this.initializeEventListeners();
         this.updateUserDisplay();
-        this.loadSearch();
+        this.loadSearch(); // This will be async now
     }
 
     private getCurrentUser(): UserSession | null {
@@ -92,11 +116,11 @@ class UserPanel {
         // Sidebar navigation
         const menuItems = document.querySelectorAll('.menu-item');
         menuItems.forEach(item => {
-            item.addEventListener('click', (e) => {
+            item.addEventListener('click', async (e) => {
                 e.preventDefault();
                 const section = (item as HTMLElement).getAttribute('data-section');
                 if (section) {
-                    this.switchSection(section);
+                    await this.switchSection(section);
                 }
             });
         });
@@ -140,7 +164,7 @@ class UserPanel {
     private updateUserDisplay(): void {
         const userName = document.getElementById('userName');
         if (userName && this.currentUser) {
-            userName.textContent = `Welcome, ${this.currentUser.name}`;
+            userName.textContent = `Welcome, ${this.currentUser.username}`;
         }
 
         // Update profile form
@@ -149,13 +173,13 @@ class UserPanel {
         const profileRole = document.getElementById('profileRole') as HTMLInputElement;
 
         if (this.currentUser) {
-            if (profileName) profileName.value = this.currentUser.name;
+            if (profileName) profileName.value = this.currentUser.username;
             if (profileEmail) profileEmail.value = this.currentUser.email;
-            if (profileRole) profileRole.value = this.currentUser.role;
+            if (profileRole) profileRole.value = this.currentUser.isAdmin ? 'admin' : 'user';
         }
     }
 
-    private switchSection(section: string): void {
+    private async switchSection(section: string): Promise<void> {
         // Hide all sections
         const sections = document.querySelectorAll('.content-section');
         sections.forEach(s => s.classList.remove('active'));
@@ -175,7 +199,7 @@ class UserPanel {
         // Load section content
         switch (section) {
             case 'search':
-                this.loadSearch();
+                await this.loadSearch();
                 break;
             case 'history':
                 this.loadHistory();
@@ -190,17 +214,32 @@ class UserPanel {
         sidebar?.classList.remove('active');
     }
 
-    private loadSearch(): void {
-        // Populate item families dropdown
-        const items = UserDataManager.getItems();
-        const families = [...new Set(items.map(item => item.family))];
-        
-        const familySelect = document.getElementById('searchByFamily') as HTMLSelectElement;
-        if (familySelect) {
-            familySelect.innerHTML = '<option value="">All Families</option>';
-            families.forEach(family => {
-                familySelect.innerHTML += `<option value="${family}">${family}</option>`;
-            });
+    private async loadSearch(): Promise<void> {
+        try {
+            // Populate item usines dropdown
+            const items = await UserDataManager.getItems();
+            const usines = [...new Set(items.map(item => item.Usine))];
+            
+            const usineSelect = document.getElementById('searchByUsine') as HTMLSelectElement;
+            if (usineSelect) {
+                usineSelect.innerHTML = '<option value="">All Usines</option>';
+                usines.forEach(usine => {
+                    usineSelect.innerHTML += `<option value="${usine}">${usine}</option>`;
+                });
+            }
+        } catch (error) {
+            console.error('Failed to load search data:', error);
+            // Fallback to sync method
+            const items = UserDataManager.getItemsSync();
+            const usines = [...new Set(items.map(item => item.Usine))];
+            
+            const usineSelect = document.getElementById('searchByUsine') as HTMLSelectElement;
+            if (usineSelect) {
+                usineSelect.innerHTML = '<option value="">All Usines</option>';
+                usines.forEach(usine => {
+                    usineSelect.innerHTML += `<option value="${usine}">${usine}</option>`;
+                });
+            }
         }
 
         // Clear any previous search results
@@ -210,50 +249,55 @@ class UserPanel {
         }
     }
 
-    private handleSearch(): void {
-        const searchByName = (document.getElementById('searchByName') as HTMLInputElement).value.trim();
-        const searchByCode = (document.getElementById('searchByCode') as HTMLInputElement).value.trim();
-        const searchByFamily = (document.getElementById('searchByFamily') as HTMLSelectElement).value;
+    private async handleSearch(): Promise<void> {
+        const searchByArticle = (document.getElementById('searchByArticle') as HTMLInputElement).value.trim();
+        const searchByEmplacement = (document.getElementById('searchByEmplacement') as HTMLInputElement).value.trim();
+        const searchByUsine = (document.getElementById('searchByUsine') as HTMLSelectElement).value;
 
         // Validate that at least one search criteria is provided
-        if (!searchByName && !searchByCode && !searchByFamily) {
+        if (!searchByArticle && !searchByEmplacement && !searchByUsine) {
             alert('Please provide at least one search criteria.');
             return;
         }
 
-        const items = UserDataManager.getItems();
-        let filteredItems = items;
+        try {
+            const items = await UserDataManager.getItems();
+            let filteredItems = items;
 
-        if (searchByName) {
-            filteredItems = filteredItems.filter(item => 
-                item.name.toLowerCase().includes(searchByName.toLowerCase())
-            );
-        }
+            if (searchByArticle) {
+                filteredItems = filteredItems.filter(item => 
+                    item.article.toLowerCase().includes(searchByArticle.toLowerCase())
+                );
+            }
 
-        if (searchByCode) {
-            filteredItems = filteredItems.filter(item => 
-                item.code.toLowerCase().includes(searchByCode.toLowerCase())
-            );
-        }
+            if (searchByEmplacement) {
+                filteredItems = filteredItems.filter(item => 
+                    item.Emplacement.toLowerCase().includes(searchByEmplacement.toLowerCase())
+                );
+            }
 
-        if (searchByFamily) {
-            filteredItems = filteredItems.filter(item => item.family === searchByFamily);
-        }
+            if (searchByUsine) {
+                filteredItems = filteredItems.filter(item => item.Usine === searchByUsine);
+            }
 
-        this.displaySearchResults(filteredItems);
+            this.displaySearchResults(filteredItems);
 
-        // Record search history
-        const searchTerm = searchByName || searchByCode || searchByFamily;
-        const searchType = searchByName ? 'name' : searchByCode ? 'code' : 'family';
-        
-        if (this.currentUser) {
-            UserDataManager.addSearchHistory(
-                this.currentUser.userId,
-                this.currentUser.email,
-                searchTerm,
-                searchType,
-                filteredItems.length
-            );
+            // Record search history
+            const searchTerm = searchByArticle || searchByEmplacement || searchByUsine;
+            const searchType = searchByArticle ? 'article' : searchByEmplacement ? 'Emplacement' : 'Usine';
+            
+            if (this.currentUser) {
+                UserDataManager.addSearchHistory(
+                    this.currentUser.userId,
+                    this.currentUser.email,
+                    searchTerm,
+                    searchType,
+                    filteredItems.length
+                );
+            }
+        } catch (error) {
+            console.error('Search failed:', error);
+            alert('Search failed. Please try again.');
         }
     }
 
@@ -274,36 +318,40 @@ class UserPanel {
 
         let resultsHTML = `<h2>Search Results (${items.length} item${items.length > 1 ? 's' : ''} found)</h2>`;
         items.forEach(item => {
-            const stockStatus = item.stock > 0 ? 'In Stock' : 'Out of Stock';
-            const stockClass = item.stock > 0 ? 'in-stock' : 'out-of-stock';
+            const stockStatus = item.Stock > 0 ? 'In Stock' : 'Out of Stock';
+            const stockClass = item.Stock > 0 ? 'in-stock' : 'out-of-stock';
             
             resultsHTML += `
                 <div class="search-result-item">
-                    <h3>${item.name} <span class="item-code">(${item.code})</span></h3>
+                    <h3>${item.article}</h3>
                     <div class="search-result-details">
                         <div class="detail-item">
-                            <span class="detail-label">Item Code</span>
-                            <span class="detail-value">${item.code}</span>
+                            <span class="detail-label">Article</span>
+                            <span class="detail-value">${item.article}</span>
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">Family</span>
-                            <span class="detail-value">${item.family}</span>
+                            <span class="detail-label">Usine</span>
+                            <span class="detail-value">${item.Usine}</span>
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">Location</span>
-                            <span class="detail-value location-highlight">${item.location}</span>
+                            <span class="detail-label">Magasin</span>
+                            <span class="detail-value">${item.Magasin}</span>
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">Price</span>
-                            <span class="detail-value price-value">$${item.price.toFixed(2)}</span>
+                            <span class="detail-label">Emplacement</span>
+                            <span class="detail-value location-highlight">${item.Emplacement}</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Stock Status</span>
-                            <span class="detail-value ${stockClass}">${stockStatus} (${item.stock})</span>
+                            <span class="detail-value ${stockClass}">${stockStatus} (${item.Stock})</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Unité de Mesure</span>
+                            <span class="detail-value">${item.Unite_Mesure || 'N/A'}</span>
                         </div>
                         <div class="detail-item description-item">
                             <span class="detail-label">Description</span>
-                            <span class="detail-value">${item.description}</span>
+                            <span class="detail-value">${item.Description}</span>
                         </div>
                     </div>
                 </div>
@@ -314,9 +362,9 @@ class UserPanel {
     }
 
     private clearSearch(): void {
-        (document.getElementById('searchByName') as HTMLInputElement).value = '';
-        (document.getElementById('searchByCode') as HTMLInputElement).value = '';
-        (document.getElementById('searchByFamily') as HTMLSelectElement).value = '';
+        (document.getElementById('searchByArticle') as HTMLInputElement).value = '';
+        (document.getElementById('searchByEmplacement') as HTMLInputElement).value = '';
+        (document.getElementById('searchByUsine') as HTMLSelectElement).value = '';
         
         const searchResults = document.getElementById('searchResults');
         if (searchResults) {

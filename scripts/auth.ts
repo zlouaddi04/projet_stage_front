@@ -2,17 +2,16 @@
 interface User {
     id: number;
     name: string;
-    email: string;
+    email?: string;
     password: string;
-    role: 'admin' | 'user';
-    status: 'active' | 'inactive';
+    isadmin: boolean;
 }
 
 interface UserSession {
     userId: number;
     email: string;
-    role: string;
-    name: string;
+    isAdmin: boolean;
+    username: string;
     loginTime: string;
 }
 
@@ -28,11 +27,45 @@ interface PasswordResetResult {
 }
 
 // Mock users database
-const mockUsers: User[] = [
-    { id: 1, name: 'Admin User', email: 'admin@lafargeholcim.com', password: 'admin123', role: 'admin', status: 'active' },
-    { id: 2, name: 'John Doe', email: 'john.doe@lafargeholcim.com', password: 'user123', role: 'user', status: 'active' },
-    { id: 3, name: 'Jane Smith', email: 'jane.smith@lafargeholcim.com', password: 'user456', role: 'user', status: 'active' }
-];
+ async function fetchUsers(url: string): Promise<User[]> {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Failed to fetch user");
+        return response.json() as Promise<User[]>; // Type assertion
+}
+
+let globalUserList: User[] = [];
+let isUsersLoaded = false;
+
+async function initializeUserList(): Promise<void> {
+  try {
+    globalUserList = await fetchUsers("http://localhost:8080/users/getall");
+    isUsersLoaded = true;
+    console.log("Users loaded:", globalUserList);
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    // Fallback to mock data if API fails
+    globalUserList = [
+      { id: 1, name: "Admin User", email: "admin@lafarge.com", password: "admin123", isadmin: true },
+      { id: 2, name: "Regular User", email: "user@lafarge.com", password: "user123", isadmin: false }
+    ];
+    isUsersLoaded = true;
+    console.log("Using fallback mock data");
+  }
+}
+
+// Function to get the global user list
+function getUserList(): User[] {
+  return globalUserList;
+}
+
+// Function to check if users are loaded
+function areUsersLoaded(): boolean {
+  return isUsersLoaded;
+}
+
+// Initialize the user list
+initializeUserList();
+                                
 
 // Authentication manager class
 class AuthManager {
@@ -40,23 +73,22 @@ class AuthManager {
     private static readonly RESET_REQUESTS_KEY = 'lafarge_reset_requests';
 
     static login(email: string, password: string): AuthResult {
-        console.log('Login attempt:', { email, password });
-        console.log('Available users:', mockUsers);
-        
-        const user = mockUsers.find(u => 
+        // Check if users are loaded
+        if (!areUsersLoaded()) {
+            return { success: false, message: 'System is still loading. Please try again in a moment.' };
+        }
+
+        const user = getUserList().find(u => 
             u.email === email && 
-            u.password === password && 
-            u.status === 'active'
+            u.password === password
         );
-        
-        console.log('Found user:', user);
         
         if (user) {
             const session: UserSession = {
                 userId: user.id,
-                email: user.email,
-                role: user.role,
-                name: user.name,
+                email: user.email || '',
+                isAdmin: user.isadmin,
+                username: user.name,
                 loginTime: new Date().toISOString()
             };
             localStorage.setItem(this.SESSION_KEY, JSON.stringify(session));
@@ -80,7 +112,12 @@ class AuthManager {
     }
 
     static requestPasswordReset(email: string): PasswordResetResult {
-        const user = mockUsers.find(u => u.email === email);
+        // Check if users are loaded
+        if (!areUsersLoaded()) {
+            return { success: false, message: 'System is still loading. Please try again in a moment.' };
+        }
+
+        const user = getUserList().find(u => u.email === email);
         
         if (user) {
             // In a real application, this would send an email
@@ -104,6 +141,8 @@ class AuthManager {
     private static generateResetToken(): string {
         return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     }
+
+
 }
 
 // Authentication form handler
@@ -163,7 +202,7 @@ class AuthFormHandler {
         if (AuthManager.isAuthenticated()) {
             const currentUser = AuthManager.getCurrentUser();
             if (currentUser) {
-                this.redirectToPanel(currentUser.role);
+                this.redirectToPanel(currentUser.isAdmin);
             }
         }
     }
@@ -174,19 +213,15 @@ class AuthFormHandler {
         const email = this.emailInput.value.trim();
         const password = this.passwordInput.value.trim();
         
-        console.log('Form submission:', { email, password });
-        
         if (!this.validateLoginInput(email, password)) {
             return;
         }
         
         const result = AuthManager.login(email, password);
         
-        console.log('Login result:', result);
-        
         if (result.success && result.user) {
             this.hideError();
-            this.redirectToPanel(result.user.role);
+            this.redirectToPanel(result.user.isadmin);
         } else {
             this.showError(result.message || 'Login failed');
         }
@@ -236,8 +271,8 @@ class AuthFormHandler {
         }
     }
 
-    private redirectToPanel(role: string): void {
-        if (role === 'admin') {
+    private redirectToPanel(isAdmin: boolean): void {
+        if (isAdmin) {
             window.location.href = 'admin.html';
         } else {
             window.location.href = 'user.html';

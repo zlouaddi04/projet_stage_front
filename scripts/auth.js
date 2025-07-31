@@ -1,19 +1,48 @@
-// Mock users database
-const mockUsers = [
-    { id: 1, name: 'Admin User', email: 'admin@lafargeholcim.com', password: 'admin123', role: 'admin', status: 'active' },
-    { id: 2, name: 'John Doe', email: 'john.doe@lafargeholcim.com', password: 'user123', role: 'user', status: 'active' },
-    { id: 3, name: 'Jane Smith', email: 'jane.smith@lafargeholcim.com', password: 'user456', role: 'user', status: 'active' }
-];
-// Authentication class
+"use strict";
+async function fetchUsers(url) {
+    const response = await fetch(url);
+    if (!response.ok)
+        throw new Error("Failed to fetch user");
+    return response.json();
+}
+let globalUserList = [];
+let isUsersLoaded = false;
+async function initializeUserList() {
+    try {
+        globalUserList = await fetchUsers("http://localhost:8080/users/getall");
+        isUsersLoaded = true;
+        console.log("Users loaded:", globalUserList);
+    }
+    catch (error) {
+        console.error("Error fetching users:", error);
+        globalUserList = [
+            { id: 1, name: "Admin User", email: "admin@lafarge.com", password: "admin123", isadmin: true },
+            { id: 2, name: "Regular User", email: "user@lafarge.com", password: "user123", isadmin: false }
+        ];
+        isUsersLoaded = true;
+        console.log("Using fallback mock data");
+    }
+}
+function getUserList() {
+    return globalUserList;
+}
+function areUsersLoaded() {
+    return isUsersLoaded;
+}
+initializeUserList();
 class AuthManager {
     static login(email, password) {
-        const user = mockUsers.find(u => u.email === email && u.password === password && u.status === 'active');
+        if (!areUsersLoaded()) {
+            return { success: false, message: 'System is still loading. Please try again in a moment.' };
+        }
+        const user = getUserList().find(u => u.email === email &&
+            u.password === password);
         if (user) {
             const session = {
                 userId: user.id,
-                email: user.email,
-                role: user.role,
-                name: user.name,
+                email: user.email || '',
+                isAdmin: user.isadmin,
+                username: user.name,
                 loginTime: new Date().toISOString()
             };
             localStorage.setItem(this.SESSION_KEY, JSON.stringify(session));
@@ -32,15 +61,16 @@ class AuthManager {
         return this.getCurrentUser() !== null;
     }
     static requestPasswordReset(email) {
-        const user = mockUsers.find(u => u.email === email);
+        if (!areUsersLoaded()) {
+            return { success: false, message: 'System is still loading. Please try again in a moment.' };
+        }
+        const user = getUserList().find(u => u.email === email);
         if (user) {
-            // In a real application, this would send an email
             const resetRequest = {
                 email,
                 token: this.generateResetToken(),
                 timestamp: new Date().toISOString()
             };
-            // Store reset request (in real app, this would be server-side)
             const existingRequests = JSON.parse(localStorage.getItem(this.RESET_REQUESTS_KEY) || '[]');
             existingRequests.push(resetRequest);
             localStorage.setItem(this.RESET_REQUESTS_KEY, JSON.stringify(existingRequests));
@@ -54,104 +84,138 @@ class AuthManager {
 }
 AuthManager.SESSION_KEY = 'lafarge_session';
 AuthManager.RESET_REQUESTS_KEY = 'lafarge_reset_requests';
-// DOM elements
-const loginForm = document.getElementById('loginForm');
-const emailInput = document.getElementById('email');
-const passwordInput = document.getElementById('password');
-const errorMessage = document.getElementById('errorMessage');
-const forgotPasswordLink = document.getElementById('forgotPasswordLink');
-const forgotPasswordModal = document.getElementById('forgotPasswordModal');
-const forgotPasswordForm = document.getElementById('forgotPasswordForm');
-const resetEmailInput = document.getElementById('resetEmail');
-const successMessage = document.getElementById('successMessage');
-const closeModal = document.getElementById('closeModal');
-// Event listeners
-document.addEventListener('DOMContentLoaded', () => {
-    // Check if user is already logged in
-    if (AuthManager.isAuthenticated()) {
-        const currentUser = AuthManager.getCurrentUser();
-        redirectToPanel(currentUser.role);
+class AuthFormHandler {
+    constructor() {
+        this.initializeElements();
+        this.setupEventListeners();
+        this.checkExistingAuth();
     }
-    // Login form submission
-    loginForm.addEventListener('submit', handleLogin);
-    // Forgot password link
-    forgotPasswordLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        showForgotPasswordModal();
-    });
-    // Forgot password form submission
-    forgotPasswordForm.addEventListener('submit', handleForgotPassword);
-    // Close modal
-    closeModal.addEventListener('click', hideForgotPasswordModal);
-    // Close modal when clicking outside
-    forgotPasswordModal.addEventListener('click', (e) => {
-        if (e.target === forgotPasswordModal) {
-            hideForgotPasswordModal();
+    initializeElements() {
+        this.loginForm = document.getElementById('loginForm');
+        this.emailInput = document.getElementById('email');
+        this.passwordInput = document.getElementById('password');
+        this.errorMessage = document.getElementById('errorMessage');
+        this.forgotPasswordLink = document.getElementById('forgotPasswordLink');
+        this.forgotPasswordModal = document.getElementById('forgotPasswordModal');
+        this.forgotPasswordForm = document.getElementById('forgotPasswordForm');
+        this.resetEmailInput = document.getElementById('resetEmail');
+        this.successMessage = document.getElementById('successMessage');
+        this.closeModal = document.getElementById('closeModal');
+    }
+    setupEventListeners() {
+        this.loginForm.addEventListener('submit', this.handleLogin.bind(this));
+        this.forgotPasswordLink.addEventListener('click', this.showForgotPasswordModal.bind(this));
+        this.forgotPasswordForm.addEventListener('submit', this.handleForgotPassword.bind(this));
+        this.closeModal.addEventListener('click', this.hideForgotPasswordModal.bind(this));
+        this.forgotPasswordModal.addEventListener('click', (e) => {
+            if (e.target === this.forgotPasswordModal) {
+                this.hideForgotPasswordModal();
+            }
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.forgotPasswordModal.style.display === 'flex') {
+                this.hideForgotPasswordModal();
+            }
+        });
+    }
+    checkExistingAuth() {
+        if (AuthManager.isAuthenticated()) {
+            const currentUser = AuthManager.getCurrentUser();
+            if (currentUser) {
+                this.redirectToPanel(currentUser.isAdmin);
+            }
         }
-    });
+    }
+    handleLogin(e) {
+        e.preventDefault();
+        const email = this.emailInput.value.trim();
+        const password = this.passwordInput.value.trim();
+        if (!this.validateLoginInput(email, password)) {
+            return;
+        }
+        const result = AuthManager.login(email, password);
+        if (result.success && result.user) {
+            this.hideError();
+            this.redirectToPanel(result.user.isadmin);
+        }
+        else {
+            this.showError(result.message || 'Login failed');
+        }
+    }
+    validateLoginInput(email, password) {
+        if (!email || !password) {
+            this.showError('Please fill in all fields');
+            return false;
+        }
+        if (!this.isValidEmail(email)) {
+            this.showError('Please enter a valid email address');
+            return false;
+        }
+        return true;
+    }
+    isValidEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    }
+    handleForgotPassword(e) {
+        e.preventDefault();
+        const email = this.resetEmailInput.value.trim();
+        if (!email) {
+            this.showError('Please enter your email address');
+            return;
+        }
+        if (!this.isValidEmail(email)) {
+            this.showError('Please enter a valid email address');
+            return;
+        }
+        const result = AuthManager.requestPasswordReset(email);
+        if (result.success) {
+            this.showSuccess(result.message);
+            this.resetEmailInput.value = '';
+        }
+        else {
+            this.showError(result.message);
+        }
+    }
+    redirectToPanel(isAdmin) {
+        if (isAdmin) {
+            window.location.href = 'admin.html';
+        }
+        else {
+            window.location.href = 'user.html';
+        }
+    }
+    showError(message) {
+        this.errorMessage.textContent = message;
+        this.errorMessage.style.display = 'block';
+        this.errorMessage.setAttribute('aria-live', 'polite');
+        setTimeout(() => {
+            this.hideError();
+        }, 5000);
+    }
+    hideError() {
+        this.errorMessage.style.display = 'none';
+    }
+    showSuccess(message) {
+        this.successMessage.textContent = message;
+        this.successMessage.style.display = 'block';
+        this.successMessage.setAttribute('aria-live', 'polite');
+        setTimeout(() => {
+            this.successMessage.style.display = 'none';
+        }, 8000);
+    }
+    showForgotPasswordModal(e) {
+        e.preventDefault();
+        this.forgotPasswordModal.style.display = 'flex';
+        this.resetEmailInput.focus();
+    }
+    hideForgotPasswordModal() {
+        this.forgotPasswordModal.style.display = 'none';
+        this.resetEmailInput.value = '';
+        this.successMessage.style.display = 'none';
+        this.hideError();
+    }
+}
+document.addEventListener('DOMContentLoaded', () => {
+    new AuthFormHandler();
 });
-function handleLogin(e) {
-    e.preventDefault();
-    const email = emailInput.value.trim();
-    const password = passwordInput.value.trim();
-    if (!email || !password) {
-        showError('Please fill in all fields');
-        return;
-    }
-    const result = AuthManager.login(email, password);
-    if (result.success && result.user) {
-        hideError();
-        redirectToPanel(result.user.role);
-    }
-    else {
-        showError(result.message || 'Login failed');
-    }
-}
-function handleForgotPassword(e) {
-    e.preventDefault();
-    const email = resetEmailInput.value.trim();
-    if (!email) {
-        return;
-    }
-    const result = AuthManager.requestPasswordReset(email);
-    if (result.success) {
-        showSuccess(result.message);
-        resetEmailInput.value = '';
-    }
-    else {
-        showError(result.message);
-    }
-}
-function redirectToPanel(role) {
-    if (role === 'admin') {
-        window.location.href = 'admin.html';
-    }
-    else {
-        window.location.href = 'user.html';
-    }
-}
-function showError(message) {
-    errorMessage.textContent = message;
-    errorMessage.style.display = 'block';
-    setTimeout(() => {
-        hideError();
-    }, 5000);
-}
-function hideError() {
-    errorMessage.style.display = 'none';
-}
-function showSuccess(message) {
-    successMessage.textContent = message;
-    successMessage.style.display = 'block';
-    setTimeout(() => {
-        successMessage.style.display = 'none';
-    }, 5000);
-}
-function showForgotPasswordModal() {
-    forgotPasswordModal.style.display = 'flex';
-}
-function hideForgotPasswordModal() {
-    forgotPasswordModal.style.display = 'none';
-    resetEmailInput.value = '';
-    successMessage.style.display = 'none';
-}
