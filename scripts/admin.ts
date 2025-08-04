@@ -47,29 +47,7 @@ interface UserSession {
     loginTime: string;
 }
 
-interface SearchHistory {
-    id: number;
-    userId: number;
-    userEmail: string;
-    searchTerm: string;
-    searchType: 'article' | 'Emplacement' | 'Description';
-    resultsCount: number;
-    timestamp: string;
-}
 
-interface Movement {
-    id: number;
-    itemArticle: string;
-    itemDescription: string;
-    movementType: 'IN' | 'OUT' | 'TRANSFER' | 'ADJUSTMENT';
-    quantity: number;
-    fromLocation: string;
-    toLocation: string;
-    userId: number;
-    userEmail: string;
-    timestamp: string;
-    notes: string;
-}
 
 // Mock data
 const mockItems: Item[] = [
@@ -87,23 +65,12 @@ const mockAdminUsers: AdminUser[] = [
     { id: 4, name: 'Mike Johnson', email: 'mike.johnson@lafargeholcim.com', role: 'user', status: 'inactive' }
 ];
 
-const mockSearchHistory: SearchHistory[] = [
-    { id: 1, userId: 2, userEmail: 'john.doe@lafargeholcim.com', searchTerm: 'LH001', searchType: 'article', resultsCount: 1, timestamp: '2024-01-17T09:30:00' },
-    { id: 2, userId: 3, userEmail: 'jane.smith@lafargeholcim.com', searchTerm: 'LH003', searchType: 'article', resultsCount: 1, timestamp: '2024-01-16T15:45:00' },
-    { id: 3, userId: 2, userEmail: 'john.doe@lafargeholcim.com', searchTerm: 'Warehouse', searchType: 'Emplacement', resultsCount: 1, timestamp: '2024-01-16T11:20:00' }
-];
 
-const mockMovements: Movement[] = [
-    { id: 1, itemArticle: 'LH001', itemDescription: 'High quality Portland cement', movementType: 'IN', quantity: 100, fromLocation: 'Supplier', toLocation: 'Warehouse A-1', userId: 1, userEmail: 'admin@lafargeholcim.com', timestamp: '2024-01-15T08:00:00', notes: 'New stock delivery' },
-    { id: 2, itemArticle: 'LH003', itemDescription: 'High strength steel reinforcement bars', movementType: 'OUT', quantity: 50, fromLocation: 'Steel Storage C-2', toLocation: 'Project Site 1', userId: 2, userEmail: 'john.doe@lafargeholcim.com', timestamp: '2024-01-16T10:30:00', notes: 'Site delivery for Foundation work' }
-];
 
 // Data management class
 class DataManager {
     private static readonly ITEMS_KEY = 'lafarge_items';
     private static readonly USERS_KEY = 'lafarge_users';
-    private static readonly SEARCH_HISTORY_KEY = 'lafarge_search_history';
-    private static readonly MOVEMENTS_KEY = 'lafarge_movements';
     private static readonly API_BASE_URL = 'http://localhost:8080';
 
     static async initializeData(): Promise<void> {
@@ -120,14 +87,6 @@ class DataManager {
             if (!localStorage.getItem(this.USERS_KEY)) {
                 localStorage.setItem(this.USERS_KEY, JSON.stringify(mockAdminUsers));
             }
-        }
-        
-        // Initialize local data that doesn't come from API
-        if (!localStorage.getItem(this.SEARCH_HISTORY_KEY)) {
-            localStorage.setItem(this.SEARCH_HISTORY_KEY, JSON.stringify(mockSearchHistory));
-        }
-        if (!localStorage.getItem(this.MOVEMENTS_KEY)) {
-            localStorage.setItem(this.MOVEMENTS_KEY, JSON.stringify(mockMovements));
         }
     }
 
@@ -191,43 +150,12 @@ class DataManager {
         return JSON.parse(localStorage.getItem(this.USERS_KEY) || '[]');
     }
 
-    static getSearchHistory(): SearchHistory[] {
-        return JSON.parse(localStorage.getItem(this.SEARCH_HISTORY_KEY) || '[]');
-    }
-
-    static getMovements(): Movement[] {
-        return JSON.parse(localStorage.getItem(this.MOVEMENTS_KEY) || '[]');
-    }
-
     static saveItems(items: Item[]): void {
         localStorage.setItem(this.ITEMS_KEY, JSON.stringify(items));
     }
 
     static saveUsers(users: AdminUser[]): void {
         localStorage.setItem(this.USERS_KEY, JSON.stringify(users));
-    }
-
-    static saveSearchHistory(history: SearchHistory[]): void {
-        localStorage.setItem(this.SEARCH_HISTORY_KEY, JSON.stringify(history));
-    }
-
-    static saveMovements(movements: Movement[]): void {
-        localStorage.setItem(this.MOVEMENTS_KEY, JSON.stringify(movements));
-    }
-
-    static addSearchHistory(userId: number, userEmail: string, searchTerm: string, searchType: 'article' | 'Emplacement' | 'Description', resultsCount: number): void {
-        const history = this.getSearchHistory();
-        const newEntry: SearchHistory = {
-            id: history.length + 1,
-            userId,
-            userEmail,
-            searchTerm,
-            searchType,
-            resultsCount,
-            timestamp: new Date().toISOString()
-        };
-        history.push(newEntry);
-        this.saveSearchHistory(history);
     }
 
     // Method to refresh data from API
@@ -241,6 +169,11 @@ class DataManager {
             throw error;
         }
     }
+
+    // Method to get API base URL
+    static getApiBaseUrl(): string {
+        return this.API_BASE_URL;
+    }
 }
 
 // Admin panel controller class
@@ -249,6 +182,9 @@ class AdminPanel {
     private currentSection: string = 'dashboard';
 
     constructor() {
+        // Prevent back navigation to login after session is established
+        this.preventBackNavigation();
+        
         this.currentUser = this.getCurrentUser();
         if (!this.currentUser || !this.currentUser.isAdmin) {
             this.redirectToLogin();
@@ -348,6 +284,33 @@ class AdminPanel {
         return sessionData ? JSON.parse(sessionData) : null;
     }
 
+    private preventBackNavigation(): void {
+        // Add state to history to prevent back navigation
+        window.history.pushState(null, '', window.location.href);
+        
+        // Listen for popstate events (back/forward navigation)
+        window.addEventListener('popstate', (event) => {
+            // Check if user is still logged in
+            const currentUser = this.getCurrentUser();
+            if (!currentUser || !currentUser.isAdmin) {
+                // User is not logged in, redirect to login
+                window.location.replace('index.html');
+                return;
+            }
+            
+            // User is logged in, prevent going back
+            window.history.pushState(null, '', window.location.href);
+        });
+        
+        // Also prevent using browser refresh to bypass login
+        window.addEventListener('beforeunload', () => {
+            const currentUser = this.getCurrentUser();
+            if (!currentUser || !currentUser.isAdmin) {
+                localStorage.removeItem('lafarge_session');
+            }
+        });
+    }
+
     private redirectToLogin(): void {
         window.location.href = 'index.html';
     }
@@ -384,7 +347,15 @@ class AdminPanel {
     }
 
     private async refreshData(): Promise<void> {
+        const refreshBtn = document.getElementById('refreshDataBtn');
+        
         try {
+            // Add loading state to refresh button
+            if (refreshBtn) {
+                refreshBtn.classList.add('loading');
+                refreshBtn.textContent = 'Refreshing...';
+            }
+            
             this.showLoading();
             await DataManager.refreshData();
             
@@ -412,6 +383,12 @@ class AdminPanel {
             this.hideLoading();
             this.showErrorMessage('Failed to refresh data from server.');
             console.error('Refresh failed:', error);
+        } finally {
+            // Remove loading state from refresh button
+            if (refreshBtn) {
+                refreshBtn.classList.remove('loading');
+                refreshBtn.textContent = 'Refresh Data';
+            }
         }
     }
 
@@ -458,20 +435,6 @@ class AdminPanel {
         addUserBtn?.addEventListener('click', () => this.showUserModal());
         closeUserModal?.addEventListener('click', () => this.hideUserModal());
         userForm?.addEventListener('submit', this.handleUserSubmit.bind(this));
-
-        // Movement modal
-        const addMovementBtn = document.getElementById('addMovementBtn');
-        const movementModal = document.getElementById('movementModal');
-        const closeMovementModal = document.getElementById('closeMovementModal');
-        const movementForm = document.getElementById('movementForm') as HTMLFormElement;
-
-        addMovementBtn?.addEventListener('click', () => this.showMovementModal());
-        closeMovementModal?.addEventListener('click', () => this.hideMovementModal());
-        movementForm?.addEventListener('submit', this.handleMovementSubmit.bind(this));
-
-        // History filter
-        const filterHistoryBtn = document.getElementById('filterHistoryBtn');
-        filterHistoryBtn?.addEventListener('click', this.filterHistory.bind(this));
     }
 
     private updateUserDisplay(): void {
@@ -512,72 +475,141 @@ class AdminPanel {
             case 'users':
                 this.loadUsers();
                 break;
-            case 'history':
-                this.loadHistory();
-                break;
-            case 'movements':
-                this.loadMovements();
-                break;
         }
     }
 
     private loadDashboard(): void {
         const items = DataManager.getItems();
         const users = DataManager.getUsers();
-        const history = DataManager.getSearchHistory();
-        const movements = DataManager.getMovements();
+        const zeroStockItems = items.filter(item => item.Stock === 0);
 
         // Update stats
         const totalItemsEl = document.getElementById('totalItems');
         const totalUsersEl = document.getElementById('totalUsers');
-        const recentSearchesEl = document.getElementById('recentSearches');
-        const recentMovementsEl = document.getElementById('recentMovements');
+        const zeroStockItemsEl = document.getElementById('zeroStockItems');
 
         if (totalItemsEl) totalItemsEl.textContent = items.length.toString();
         if (totalUsersEl) totalUsersEl.textContent = users.filter(u => u.status === 'active').length.toString();
-        if (recentSearchesEl) recentSearchesEl.textContent = history.filter(h => this.isRecent(h.timestamp)).length.toString();
-        if (recentMovementsEl) recentMovementsEl.textContent = movements.filter(m => this.isRecent(m.timestamp)).length.toString();
+        if (zeroStockItemsEl) zeroStockItemsEl.textContent = zeroStockItems.length.toString();
 
-        // Load recent activity
-        this.loadRecentActivity();
+        // Initialize zero stock card click handler
+        this.initializeDashboardCards();
     }
 
-    private loadRecentActivity(): void {
-        const recentActivityList = document.getElementById('recentActivityList');
-        if (!recentActivityList) return;
+    private initializeDashboardCards(): void {
+        // Initialize all clickable dashboard cards
+        const totalItemsCard = document.getElementById('totalItemsCard');
+        const totalUsersCard = document.getElementById('totalUsersCard');
+        const zeroStockCard = document.getElementById('zeroStockCard');
 
-        const history = DataManager.getSearchHistory();
-        const movements = DataManager.getMovements();
-
-        const recentHistory = history.filter(h => this.isRecent(h.timestamp)).slice(-5);
-        const recentMovements = movements.filter(m => this.isRecent(m.timestamp)).slice(-5);
-
-        let activityHTML = '';
-
-        recentHistory.forEach(h => {
-            activityHTML += `
-                <div class="activity-item">
-                    <p><strong>Search:</strong> ${h.userEmail} searched for "${h.searchTerm}" by ${h.searchType}</p>
-                    <span class="activity-time">${this.formatDateTime(h.timestamp)}</span>
-                </div>
-            `;
-        });
-
-        recentMovements.forEach(m => {
-            activityHTML += `
-                <div class="activity-item">
-                    <p><strong>Movement:</strong> ${m.userEmail} recorded ${m.movementType} for ${m.itemArticle}</p>
-                    <span class="activity-time">${this.formatDateTime(m.timestamp)}</span>
-                </div>
-            `;
-        });
-
-        if (activityHTML === '') {
-            activityHTML = '<p class="no-activity">No recent activity</p>';
+        // Total Items Card - redirect to items section
+        if (totalItemsCard) {
+            const newItemsCard = totalItemsCard.cloneNode(true) as HTMLElement;
+            totalItemsCard.parentNode?.replaceChild(newItemsCard, totalItemsCard);
+            
+            newItemsCard.addEventListener('click', () => {
+                this.switchSection('items');
+            });
+            
+            newItemsCard.style.cursor = 'pointer';
         }
 
-        recentActivityList.innerHTML = activityHTML;
+        // Total Users Card - redirect to users section
+        if (totalUsersCard) {
+            const newUsersCard = totalUsersCard.cloneNode(true) as HTMLElement;
+            totalUsersCard.parentNode?.replaceChild(newUsersCard, totalUsersCard);
+            
+            newUsersCard.addEventListener('click', () => {
+                this.switchSection('users');
+            });
+            
+            newUsersCard.style.cursor = 'pointer';
+        }
+
+        // Zero Stock Card - show zero stock items
+        if (zeroStockCard) {
+            const newZeroStockCard = zeroStockCard.cloneNode(true) as HTMLElement;
+            zeroStockCard.parentNode?.replaceChild(newZeroStockCard, zeroStockCard);
+            
+            newZeroStockCard.addEventListener('click', () => {
+                this.displayZeroStockItems();
+            });
+            
+            newZeroStockCard.style.cursor = 'pointer';
+        }
     }
+
+    private displayZeroStockItems(): void {
+        const items = DataManager.getItems();
+        const zeroStockItems = items.filter(item => item.Stock === 0);
+        const resultsContainer = document.getElementById('zeroStockResults');
+        
+        if (!resultsContainer) return;
+
+        if (zeroStockItems.length === 0) {
+            resultsContainer.innerHTML = `
+                <div class="zero-stock-header">
+                    <h2>Items Out of Stock</h2>
+                </div>
+                <div class="no-results">No items are currently out of stock.</div>
+            `;
+            resultsContainer.style.display = 'block';
+            return;
+        }
+
+        let resultsHTML = `
+            <div class="zero-stock-header">
+                <h2>Items Out of Stock (${zeroStockItems.length} items)</h2>
+                <button class="close-btn" onclick="this.parentElement.parentElement.style.display='none'">×</button>
+            </div>
+        `;
+        
+        zeroStockItems.forEach(item => {
+            resultsHTML += `
+                <div class="search-result-item zero-stock-item">
+                    <h3>${item.article}</h3>
+                    <div class="search-result-details">
+                        <div class="detail-item">
+                            <span class="detail-label">Article</span>
+                            <span class="detail-value">${item.article}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Usine</span>
+                            <span class="detail-value">${item.Usine}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Magasin</span>
+                            <span class="detail-value">${item.Magasin}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Emplacement</span>
+                            <span class="detail-value">${item.Emplacement}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Stock</span>
+                            <span class="detail-value stock-empty">0</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Unité de Mesure</span>
+                            <span class="detail-value">${item.Unite_Mesure || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Description</span>
+                            <span class="detail-value">${item.Description}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        resultsContainer.innerHTML = resultsHTML;
+        resultsContainer.style.display = 'block';
+        
+        // Scroll to the results
+        resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+
 
     private loadSearch(): void {
         // Populate item usines dropdown
@@ -618,20 +650,6 @@ class AdminPanel {
         }
 
         this.displaySearchResults(filteredItems);
-
-        // Record search history
-        const searchTerm = searchByArticle || searchByEmplacement || searchByDesc;
-        const searchType = searchByArticle ? 'article' : searchByEmplacement ? 'Emplacement' : 'Description';
-        
-        if (searchTerm && this.currentUser) {
-            DataManager.addSearchHistory(
-                this.currentUser.userId,
-                this.currentUser.email,
-                searchTerm,
-                searchType,
-                filteredItems.length
-            );
-        }
     }
 
     private displaySearchResults(items: Item[]): void {
@@ -643,7 +661,7 @@ class AdminPanel {
             return;
         }
 
-        let resultsHTML = '<h2>Search Results</h2>';
+        let resultsHTML = `<h2>Search Results (${items.length} items found)</h2>`;
         items.forEach(item => {
             resultsHTML += `
                 <div class="search-result-item">
@@ -710,16 +728,18 @@ class AdminPanel {
                     <td>${item.Description}</td>
                     <td>${item.Emplacement}</td>
                     <td>${item.Stock}</td>
-                    <td>${item.Unite_Mesure || 'N/A'}</td>
                     <td>
-                        <button class="edit-btn" onclick="adminPanel.editItem(${item.id})">Edit</button>
-                        <button class="delete-btn" onclick="adminPanel.deleteItem(${item.id})">Delete</button>
+                        <button class="edit-btn" data-action="edit-item" data-id="${item.id}">Edit</button>
+                        <button class="delete-btn" data-action="delete-item" data-id="${item.id}">Delete</button>
                     </td>
                 </tr>
             `;
         });
 
         tableBody.innerHTML = tableHTML;
+
+        // Add event listeners for the new buttons
+        this.addItemButtonListeners();
     }
 
     private loadUsers(): void {
@@ -737,97 +757,58 @@ class AdminPanel {
                     <td>${user.role}</td>
                     <td><span class="${statusClass}">${user.status}</span></td>
                     <td>
-                        <button class="edit-btn" onclick="adminPanel.editUser(${user.id})">Edit</button>
-                        <button class="delete-btn" onclick="adminPanel.deleteUser(${user.id})">Delete</button>
+                        <button class="edit-btn" data-action="edit-user" data-id="${user.id}">Edit</button>
+                        <button class="delete-btn" data-action="delete-user" data-id="${user.id}">Delete</button>
                     </td>
                 </tr>
             `;
         });
 
         tableBody.innerHTML = tableHTML;
+
+        // Add event listeners for the new buttons
+        this.addUserButtonListeners();
     }
 
-    private loadHistory(): void {
-        const history = DataManager.getSearchHistory();
-        const users = DataManager.getUsers();
-        
-        // Populate user filter
-        const historyUserSelect = document.getElementById('historyUser') as HTMLSelectElement;
-        if (historyUserSelect) {
-            historyUserSelect.innerHTML = '<option value="">All Users</option>';
-            users.forEach(user => {
-                historyUserSelect.innerHTML += `<option value="${user.email}">${user.name}</option>`;
+    private addItemButtonListeners(): void {
+        const tableBody = document.getElementById('itemsTableBody');
+        if (!tableBody) return;
+
+        const buttons = tableBody.querySelectorAll('button[data-action]');
+        buttons.forEach(button => {
+            const action = button.getAttribute('data-action');
+            const id = parseInt(button.getAttribute('data-id') || '0');
+            
+            button.addEventListener('click', () => {
+                if (action === 'edit-item') {
+                    this.editItem(id);
+                } else if (action === 'delete-item') {
+                    this.deleteItem(id);
+                }
             });
-        }
-
-        this.displayHistory(history);
+        });
     }
 
-    private displayHistory(history: SearchHistory[]): void {
-        const tableBody = document.getElementById('historyTableBody');
+    private addUserButtonListeners(): void {
+        const tableBody = document.getElementById('usersTableBody');
         if (!tableBody) return;
 
-        let tableHTML = '';
-        history.forEach(h => {
-            tableHTML += `
-                <tr>
-                    <td>${this.formatDateTime(h.timestamp)}</td>
-                    <td>${h.userEmail}</td>
-                    <td>${h.searchTerm}</td>
-                    <td>${h.searchType}</td>
-                    <td>${h.resultsCount}</td>
-                </tr>
-            `;
+        const buttons = tableBody.querySelectorAll('button[data-action]');
+        buttons.forEach(button => {
+            const action = button.getAttribute('data-action');
+            const id = parseInt(button.getAttribute('data-id') || '0');
+            
+            button.addEventListener('click', () => {
+                if (action === 'edit-user') {
+                    this.editUser(id);
+                } else if (action === 'delete-user') {
+                    this.deleteUser(id);
+                }
+            });
         });
-
-        tableBody.innerHTML = tableHTML;
     }
 
-    private filterHistory(): void {
-        const dateFrom = (document.getElementById('historyDateFrom') as HTMLInputElement).value;
-        const dateTo = (document.getElementById('historyDateTo') as HTMLInputElement).value;
-        const userEmail = (document.getElementById('historyUser') as HTMLSelectElement).value;
 
-        let history = DataManager.getSearchHistory();
-
-        if (dateFrom) {
-            history = history.filter(h => h.timestamp >= dateFrom + 'T00:00:00');
-        }
-
-        if (dateTo) {
-            history = history.filter(h => h.timestamp <= dateTo + 'T23:59:59');
-        }
-
-        if (userEmail) {
-            history = history.filter(h => h.userEmail === userEmail);
-        }
-
-        this.displayHistory(history);
-    }
-
-    private loadMovements(): void {
-        const movements = DataManager.getMovements();
-        const tableBody = document.getElementById('movementsTableBody');
-        if (!tableBody) return;
-
-        let tableHTML = '';
-        movements.forEach(m => {
-            tableHTML += `
-                <tr>
-                    <td>${this.formatDateTime(m.timestamp)}</td>
-                    <td>${m.itemArticle}</td>
-                    <td>${m.itemDescription}</td>
-                    <td>${m.movementType}</td>
-                    <td>${m.quantity}</td>
-                    <td>${m.fromLocation}</td>
-                    <td>${m.toLocation}</td>
-                    <td>${m.userEmail}</td>
-                </tr>
-            `;
-        });
-
-        tableBody.innerHTML = tableHTML;
-    }
 
     private showItemModal(item?: Item): void {
         const modal = document.getElementById('itemModal');
@@ -873,15 +854,92 @@ class AdminPanel {
         modal!.style.display = 'none';
     }
 
-    private handleItemSubmit(e: Event): void {
+    private async handleItemSubmit(e: Event): Promise<void> {
         e.preventDefault();
-        // Implementation for saving item
-        this.hideItemModal();
-        this.loadItems();
+        
+        const form = e.target as HTMLFormElement;
+        const formData = new FormData(form);
+        
+        // Map form fields to match backend @JsonProperty annotations
+        const itemData = {
+            reference: formData.get('itemArticle') as string,
+            Usine: formData.get('itemUsine') as string || 'M107',
+            Magasin: formData.get('itemMagasin') as string || 'G200',
+            emplacement: formData.get('itemEmplacement') as string,
+            stock: parseInt(formData.get('itemStock') as string),
+            desc: formData.get('itemDescription') as string,
+            unite: formData.get('itemUniteMesure') as string
+        };
+
+        // Basic validation
+        if (!itemData.reference || !itemData.emplacement || !itemData.desc || !itemData.unite) {
+            alert('Please fill in all required fields');
+            return;
+        }
+
+        if (itemData.stock < 0) {
+            alert('Stock quantity cannot be negative');
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:8080/Pieces/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(itemData)
+            });
+
+            const result = await response.json();
+            
+            // Check the API response structure
+            if (response.ok && (result.statusCode === 200 || result.success !== false)) {
+                alert('Item added successfully!');
+                this.hideItemModal();
+                form.reset();
+                
+                // Refresh data to show the new item
+                await DataManager.loadItemsFromAPI();
+                this.loadItems();
+                
+                // If we're on dashboard, refresh dashboard stats too
+                if (this.currentSection === 'dashboard') {
+                    this.loadDashboard();
+                }
+            } else {
+                // Handle API error response
+                const errorMessage = result.message || result.error || 'Failed to add item';
+                alert(`Error: ${errorMessage}`);
+            }
+            
+        } catch (error) {
+            console.error('Error adding item:', error);
+            if (error instanceof Error) {
+                alert(`Error adding item: ${error.message}`);
+            } else {
+                alert('Error adding item: An unknown error occurred.');
+            }
+        }
     }
 
     private showUserModal(user?: AdminUser): void {
         const modal = document.getElementById('userModal');
+        const modalTitle = document.getElementById('userModalTitle');
+        const form = document.getElementById('userForm') as HTMLFormElement;
+        
+        if (user) {
+            modalTitle!.textContent = 'Edit User';
+            // Populate form with user data
+            (document.getElementById('userName') as HTMLInputElement).value = user.name;
+            (document.getElementById('userEmail') as HTMLInputElement).value = user.email;
+            (document.getElementById('userRole') as HTMLSelectElement).value = user.role;
+            (document.getElementById('userPassword') as HTMLInputElement).value = ''; // Don't show password
+        } else {
+            modalTitle!.textContent = 'Add User';
+            form.reset();
+        }
+
         modal!.style.display = 'flex';
     }
 
@@ -890,29 +948,104 @@ class AdminPanel {
         modal!.style.display = 'none';
     }
 
-    private handleUserSubmit(e: Event): void {
+    private async handleUserSubmit(e: Event): Promise<void> {
         e.preventDefault();
-        // Implementation for saving user
-        this.hideUserModal();
-        this.loadUsers();
+        
+        const form = e.target as HTMLFormElement;
+        const formData = new FormData(form);
+        
+        // Get form values
+        const name = (document.getElementById('userName') as HTMLInputElement).value.trim();
+        const email = (document.getElementById('userEmail') as HTMLInputElement).value.trim();
+        const role = (document.getElementById('userRole') as HTMLSelectElement).value;
+        const password = (document.getElementById('userPassword') as HTMLInputElement).value.trim();
+        
+        // Validate required fields
+        if (!name || !email || !password) {
+            this.showErrorMessage('Please fill in all required fields.');
+            return;
+        }
+        
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            this.showErrorMessage('Please enter a valid email address.');
+            return;
+        }
+        
+        // Validate password length
+        if (password.length < 4) {
+            this.showErrorMessage('Password must be at least 4 characters long.');
+            return;
+        }
+        
+        // Prepare user data for API
+        const userData = {
+            name: name,
+            email: email,
+            password: password,
+            isadmin: role === 'admin'
+        };
+        
+        try {
+            // Show loading state
+            const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Adding User...';
+            submitBtn.disabled = true;
+            
+            // Call API to add user
+            const response = await fetch(`${DataManager.getApiBaseUrl()}/users/add`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(userData)
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            // Check if the API response indicates success
+            if (result.data) {
+                this.showSuccessMessage('User added successfully!');
+                this.hideUserModal();
+                
+                // Refresh the users list
+                await DataManager.loadUsersFromAPI();
+                this.loadUsers();
+            } else {
+                throw new Error(result.message || 'Failed to add user');
+            }
+            
+        } catch (error) {
+            console.error('Error adding user:', error);
+            
+            // Handle specific error cases
+            if (error instanceof Error) {
+                if (error.message.includes('username already taken') || error.message.includes('CONFLICT')) {
+                    this.showErrorMessage('A user with this name already exists. Please use a different name.');
+                } else if (error.message.includes('Fill all fields')) {
+                    this.showErrorMessage('Please fill in all required fields.');
+                } else {
+                    this.showErrorMessage(`Failed to add user: ${error.message}`);
+                }
+            } else {
+                this.showErrorMessage('Failed to add user. Please check your connection and try again.');
+            }
+        } finally {
+            // Restore button state
+            const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+            submitBtn.textContent = 'Save User';
+            submitBtn.disabled = false;
+        }
     }
 
-    private showMovementModal(): void {
-        const modal = document.getElementById('movementModal');
-        modal!.style.display = 'flex';
-    }
 
-    private hideMovementModal(): void {
-        const modal = document.getElementById('movementModal');
-        modal!.style.display = 'none';
-    }
-
-    private handleMovementSubmit(e: Event): void {
-        e.preventDefault();
-        // Implementation for saving movement
-        this.hideMovementModal();
-        this.loadMovements();
-    }
 
     public editItem(id: number): void {
         const items = DataManager.getItems();
@@ -939,12 +1072,64 @@ class AdminPanel {
         }
     }
 
-    public deleteUser(id: number): void {
-        if (confirm('Are you sure you want to delete this user?')) {
+    public async deleteUser(id: number): Promise<void> {
+        if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            // Find the user to get their name (which corresponds to username in backend)
             const users = DataManager.getUsers();
-            const updatedUsers = users.filter(u => u.id !== id);
-            DataManager.saveUsers(updatedUsers);
-            this.loadUsers();
+            const user = users.find(u => u.id === id);
+            
+            if (!user) {
+                this.showErrorMessage('User not found.');
+                return;
+            }
+
+            // Show loading state
+            this.showLoading();
+
+            // Call API to delete user using the name field (which maps to username in backend)
+            const response = await fetch(`${DataManager.getApiBaseUrl()}/users/delete/${encodeURIComponent(user.name)}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+
+            // Check if the API response indicates success
+            if (result.data || result.success !== false) {
+                this.showSuccessMessage('User deleted successfully!');
+                
+                // Refresh the users list
+                await DataManager.loadUsersFromAPI();
+                this.loadUsers();
+            } else {
+                throw new Error(result.message || 'Failed to delete user');
+            }
+
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            
+            if (error instanceof Error) {
+                if (error.message.includes('User Not Found') || error.message.includes('NOT_FOUND')) {
+                    this.showErrorMessage('User not found. They may have been already deleted.');
+                } else {
+                    this.showErrorMessage(`Failed to delete user: ${error.message}`);
+                }
+            } else {
+                this.showErrorMessage('Failed to delete user. Please check your connection and try again.');
+            }
+        } finally {
+            this.hideLoading();
         }
     }
 
@@ -961,13 +1146,147 @@ class AdminPanel {
     }
 
     private logout(): void {
+        this.showLogoutConfirmation();
+    }
+
+    private showLogoutConfirmation(): void {
+        // Create logout confirmation modal
+        const modal = document.createElement('div');
+        modal.id = 'logoutModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            font-family: Arial, sans-serif;
+        `;
+
+        modal.innerHTML = `
+            <div style="
+                background: white;
+                padding: 30px;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                text-align: center;
+                max-width: 400px;
+                width: 90%;
+            ">
+                <div style="
+                    width: 60px;
+                    height: 60px;
+                    background: #ff6b6b;
+                    border-radius: 50%;
+                    margin: 0 auto 20px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 24px;
+                    color: white;
+                ">⚠</div>
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 22px;">Confirm Logout</h3>
+                <p style="margin: 0 0 25px 0; color: #666; font-size: 16px; line-height: 1.4;">
+                    Are you sure you want to log out? You will need to log in again to access the admin panel.
+                </p>
+                <div style="display: flex; gap: 15px; justify-content: center;">
+                    <button id="cancelLogout" style="
+                        padding: 12px 24px;
+                        border: 2px solid #ddd;
+                        background: white;
+                        color: #666;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 14px;
+                        font-weight: 500;
+                        transition: all 0.2s;
+                    ">Cancel</button>
+                    <button id="confirmLogout" style="
+                        padding: 12px 24px;
+                        border: none;
+                        background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+                        color: white;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 14px;
+                        font-weight: 500;
+                        transition: all 0.2s;
+                    ">Logout</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Add hover effects
+        const cancelBtn = modal.querySelector('#cancelLogout') as HTMLButtonElement;
+        const confirmBtn = modal.querySelector('#confirmLogout') as HTMLButtonElement;
+
+        cancelBtn.addEventListener('mouseenter', () => {
+            cancelBtn.style.borderColor = '#999';
+            cancelBtn.style.color = '#333';
+        });
+        cancelBtn.addEventListener('mouseleave', () => {
+            cancelBtn.style.borderColor = '#ddd';
+            cancelBtn.style.color = '#666';
+        });
+
+        confirmBtn.addEventListener('mouseenter', () => {
+            confirmBtn.style.transform = 'translateY(-1px)';
+            confirmBtn.style.boxShadow = '0 4px 12px rgba(238, 90, 36, 0.3)';
+        });
+        confirmBtn.addEventListener('mouseleave', () => {
+            confirmBtn.style.transform = 'translateY(0)';
+            confirmBtn.style.boxShadow = 'none';
+        });
+
+        // Handle button clicks
+        cancelBtn.addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+
+        confirmBtn.addEventListener('click', () => {
+            document.body.removeChild(modal);
+            this.performLogout();
+        });
+
+        // Close on backdrop click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        });
+
+        // Close on Escape key
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                document.body.removeChild(modal);
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+    }
+
+    private performLogout(): void {
+        // Clear session data
         localStorage.removeItem('lafarge_session');
-        window.location.href = 'index.html';
+        
+        // Clear any other cached data to ensure fresh login
+        localStorage.removeItem('lafarge_items');
+        localStorage.removeItem('lafarge_users');
+        
+        // Replace current page in history to prevent back navigation
+        window.location.replace('index.html');
     }
 }
 
 // Initialize admin panel when DOM is loaded
 let adminPanel: AdminPanel;
+
 document.addEventListener('DOMContentLoaded', () => {
     adminPanel = new AdminPanel();
 });

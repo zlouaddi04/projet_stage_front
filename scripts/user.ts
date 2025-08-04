@@ -114,6 +114,9 @@ class UserPanel {
     private currentSection: string = 'search';
 
     constructor() {
+        // Prevent back navigation to login after session is established
+        this.preventBackNavigation();
+        
         this.currentUser = this.getCurrentUser();
         if (!this.currentUser || this.currentUser.isAdmin) {
             this.redirectToLogin();
@@ -128,6 +131,33 @@ class UserPanel {
     private getCurrentUser(): UserSession | null {
         const sessionData = localStorage.getItem('lafarge_session');
         return sessionData ? JSON.parse(sessionData) : null;
+    }
+
+    private preventBackNavigation(): void {
+        // Add state to history to prevent back navigation
+        window.history.pushState(null, '', window.location.href);
+        
+        // Listen for popstate events (back/forward navigation)
+        window.addEventListener('popstate', (event) => {
+            // Check if user is still logged in
+            const currentUser = this.getCurrentUser();
+            if (!currentUser || currentUser.isAdmin) {
+                // User is not logged in or is admin, redirect to login
+                window.location.replace('index.html');
+                return;
+            }
+            
+            // User is logged in, prevent going back
+            window.history.pushState(null, '', window.location.href);
+        });
+        
+        // Also prevent using browser refresh to bypass login
+        window.addEventListener('beforeunload', () => {
+            const currentUser = this.getCurrentUser();
+            if (!currentUser || currentUser.isAdmin) {
+                localStorage.removeItem('lafarge_session');
+            }
+        });
     }
 
     private redirectToLogin(): void {
@@ -519,10 +549,141 @@ class UserPanel {
     }
 
     private logout(): void {
-        if (confirm('Are you sure you want to logout?')) {
-            localStorage.removeItem('lafarge_session');
-            window.location.href = 'index.html';
-        }
+        this.showLogoutConfirmation();
+    }
+
+    private showLogoutConfirmation(): void {
+        // Create logout confirmation modal
+        const modal = document.createElement('div');
+        modal.id = 'logoutModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            font-family: Arial, sans-serif;
+        `;
+
+        modal.innerHTML = `
+            <div style="
+                background: white;
+                padding: 30px;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                text-align: center;
+                max-width: 400px;
+                width: 90%;
+            ">
+                <div style="
+                    width: 60px;
+                    height: 60px;
+                    background: #ff6b6b;
+                    border-radius: 50%;
+                    margin: 0 auto 20px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 24px;
+                    color: white;
+                ">⚠</div>
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 22px;">Confirm Logout</h3>
+                <p style="margin: 0 0 25px 0; color: #666; font-size: 16px; line-height: 1.4;">
+                    Are you sure you want to log out? You will need to log in again to access the user panel.
+                </p>
+                <div style="display: flex; gap: 15px; justify-content: center;">
+                    <button id="cancelLogout" style="
+                        padding: 12px 24px;
+                        border: 2px solid #ddd;
+                        background: white;
+                        color: #666;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 14px;
+                        font-weight: 500;
+                        transition: all 0.2s;
+                    ">Cancel</button>
+                    <button id="confirmLogout" style="
+                        padding: 12px 24px;
+                        border: none;
+                        background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+                        color: white;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 14px;
+                        font-weight: 500;
+                        transition: all 0.2s;
+                    ">Logout</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Add hover effects
+        const cancelBtn = modal.querySelector('#cancelLogout') as HTMLButtonElement;
+        const confirmBtn = modal.querySelector('#confirmLogout') as HTMLButtonElement;
+
+        cancelBtn.addEventListener('mouseenter', () => {
+            cancelBtn.style.borderColor = '#999';
+            cancelBtn.style.color = '#333';
+        });
+        cancelBtn.addEventListener('mouseleave', () => {
+            cancelBtn.style.borderColor = '#ddd';
+            cancelBtn.style.color = '#666';
+        });
+
+        confirmBtn.addEventListener('mouseenter', () => {
+            confirmBtn.style.transform = 'translateY(-1px)';
+            confirmBtn.style.boxShadow = '0 4px 12px rgba(238, 90, 36, 0.3)';
+        });
+        confirmBtn.addEventListener('mouseleave', () => {
+            confirmBtn.style.transform = 'translateY(0)';
+            confirmBtn.style.boxShadow = 'none';
+        });
+
+        // Handle button clicks
+        cancelBtn.addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+
+        confirmBtn.addEventListener('click', () => {
+            document.body.removeChild(modal);
+            this.performLogout();
+        });
+
+        // Close on backdrop click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        });
+
+        // Close on Escape key
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                document.body.removeChild(modal);
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+    }
+
+    private performLogout(): void {
+        // Clear session data
+        localStorage.removeItem('lafarge_session');
+        
+        // Clear any other cached data to ensure fresh login
+        localStorage.removeItem('lafarge_items');
+        localStorage.removeItem('lafarge_search_history');
+        
+        // Replace current page in history to prevent back navigation
+        window.location.replace('index.html');
     }
 }
 

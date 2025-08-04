@@ -179,10 +179,10 @@ class AuthFormHandler {
     }
     redirectToPanel(isAdmin) {
         if (isAdmin) {
-            window.location.href = 'admin.html';
+            window.location.replace('admin.html');
         }
         else {
-            window.location.href = 'user.html';
+            window.location.replace('user.html');
         }
     }
     showError(message) {

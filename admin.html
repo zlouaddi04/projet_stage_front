@@ -21,8 +21,6 @@
                 <li><a href="#" data-section="search" class="menu-item">Search Items</a></li>
                 <li><a href="#" data-section="items" class="menu-item">Manage Items</a></li>
                 <li><a href="#" data-section="users" class="menu-item">Manage Users</a></li>
-                <li><a href="#" data-section="history" class="menu-item">Search History</a></li>
-                <li><a href="#" data-section="movements" class="menu-item">Item Movements</a></li>
                 <li><a href="#" id="logoutBtn" class="menu-item logout">Logout</a></li>
             </ul>
         </nav>
@@ -33,27 +31,22 @@
             <section id="dashboard" class="content-section active">
                 <h1>Dashboard</h1>
                 <div class="stats-grid">
-                    <div class="stat-card">
+                    <div class="stat-card clickable-card" id="totalItemsCard" data-section="items">
                         <h3>Total Items</h3>
                         <p id="totalItems">0</p>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card clickable-card" id="totalUsersCard" data-section="users">
                         <h3>Total Users</h3>
                         <p id="totalUsers">0</p>
                     </div>
-                    <div class="stat-card">
-                        <h3>Recent Searches</h3>
-                        <p id="recentSearches">0</p>
-                    </div>
-                    <div class="stat-card">
-                        <h3>Item Movements</h3>
-                        <p id="recentMovements">0</p>
+                    <div class="stat-card clickable-card" id="zeroStockCard">
+                        <h3>Items Out of Stock</h3>
+                        <p id="zeroStockItems">0</p>
                     </div>
                 </div>
                 
-                <div class="recent-activity">
-                    <h2>Recent Activity</h2>
-                    <div id="recentActivityList"></div>
+                <div class="zero-stock-results" id="zeroStockResults" style="display: none;">
+                    <!-- Zero stock items will be displayed here -->
                 </div>
             </section>
 
@@ -105,7 +98,6 @@
                                 <th>Description</th>
                                 <th>Emplacement</th>
                                 <th>Stock</th>
-                                <th>Unite Mesure</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -139,70 +131,8 @@
                 </div>
             </section>
 
-            <!-- History Section -->
-            <section id="history" class="content-section">
-                <h1>Search History</h1>
-                <div class="history-filters">
-                    <div class="form-group">
-                        <label for="historyDateFrom">From Date</label>
-                        <input type="date" id="historyDateFrom">
-                    </div>
-                    <div class="form-group">
-                        <label for="historyDateTo">To Date</label>
-                        <input type="date" id="historyDateTo">
-                    </div>
-                    <div class="form-group">
-                        <label for="historyUser">User</label>
-                        <select id="historyUser">
-                            <option value="">All Users</option>
-                        </select>
-                    </div>
-                    <button class="filter-btn" id="filterHistoryBtn">Filter</button>
-                </div>
-                
-                <div class="history-table-container">
-                    <table class="history-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>User</th>
-                                <th>Search Term</th>
-                                <th>Search Type</th>
-                                <th>Results Count</th>
-                            </tr>
-                        </thead>
-                        <tbody id="historyTableBody">
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+         
 
-            <!-- Movements Section -->
-            <section id="movements" class="content-section">
-                <h1>Item Movements</h1>
-                <div class="movements-header">
-                    <button class="add-btn" id="addMovementBtn">Record Movement</button>
-                </div>
-                
-                <div class="movements-table-container">
-                    <table class="movements-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Item Code</th>
-                                <th>Item Name</th>
-                                <th>Movement Type</th>
-                                <th>Quantity</th>
-                                <th>From Location</th>
-                                <th>To Location</th>
-                                <th>User</th>
-                            </tr>
-                        </thead>
-                        <tbody id="movementsTableBody">
-                        </tbody>
-                    </table>
-                </div>
-            </section>
         </main>
     </div>
 
@@ -213,33 +143,46 @@
             <h2 id="itemModalTitle">Add Item</h2>
             <form id="itemForm">
                 <div class="form-group">
-                    <label for="itemCode">Item Code</label>
-                    <input type="text" id="itemCode" required>
+                    <label for="itemArticle">Article Reference</label>
+                    <input type="text" id="itemArticle" name="itemArticle" required>
                 </div>
                 <div class="form-group">
-                    <label for="itemName">Item Name</label>
-                    <input type="text" id="itemName" required>
-                </div>
-                <div class="form-group">
-                    <label for="itemFamily">Item Family</label>
-                    <select id="itemFamily" required>
+                    <label for="itemUsine">Usine</label>
+                    <select id="itemUsine" name="itemUsine">
+                        <option value="M107">M107</option>
+                        <option value="M108">M108</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="itemLocation">Location</label>
-                    <input type="text" id="itemLocation" required>
+                    <label for="itemMagasin">Magasin</label>
+                    <select id="itemMagasin" name="itemMagasin">
+                        <option value="G200">G200</option>
+                        <option value="G201">G201</option>
+                    </select>
                 </div>
                 <div class="form-group">
-                    <label for="itemPrice">Price</label>
-                    <input type="number" id="itemPrice" step="0.01" required>
+                    <label for="itemEmplacement">Emplacement</label>
+                    <input type="text" id="itemEmplacement" name="itemEmplacement" required>
                 </div>
                 <div class="form-group">
                     <label for="itemStock">Stock Quantity</label>
-                    <input type="number" id="itemStock" required>
+                    <input type="number" id="itemStock" name="itemStock" min="0" required>
                 </div>
                 <div class="form-group">
                     <label for="itemDescription">Description</label>
-                    <textarea id="itemDescription" rows="3"></textarea>
+                    <textarea id="itemDescription" name="itemDescription" rows="3" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="itemUniteMesure">Unité de Mesure</label>
+                    <select id="itemUniteMesure" name="itemUniteMesure">
+                        <option value="">Select Unit</option>
+                        <option value="KG">KG</option>
+                        <option value="UNIT">UNIT</option>
+                        <option value="M">M</option>
+                        <option value="TON">TON</option>
+                        <option value="M3">M3</option>
+                        <option value="L">L</option>
+                    </select>
                 </div>
                 <button type="submit" class="save-btn">Save Item</button>
             </form>
@@ -253,63 +196,24 @@
             <form id="userForm">
                 <div class="form-group">
                     <label for="userName">Full Name</label>
-                    <input type="text" id="userName" required>
+                    <input type="text" id="userName" name="userName" required>
                 </div>
                 <div class="form-group">
                     <label for="userEmail">Email</label>
-                    <input type="email" id="userEmail" required>
+                    <input type="email" id="userEmail" name="userEmail" required>
                 </div>
                 <div class="form-group">
                     <label for="userRole">Role</label>
-                    <select id="userRole" required>
+                    <select id="userRole" name="userRole" required>
                         <option value="user">User</option>
                         <option value="admin">Admin</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label for="userPassword">Password</label>
-                    <input type="password" id="userPassword" required>
+                    <input type="password" id="userPassword" name="userPassword" required>
                 </div>
                 <button type="submit" class="save-btn">Save User</button>
-            </form>
-        </div>
-    </div>
-
-    <div class="modal" id="movementModal" style="display: none;">
-        <div class="modal-content">
-            <span class="close" id="closeMovementModal">&times;</span>
-            <h2>Record Movement</h2>
-            <form id="movementForm">
-                <div class="form-group">
-                    <label for="movementItemCode">Item Code</label>
-                    <input type="text" id="movementItemCode" required>
-                </div>
-                <div class="form-group">
-                    <label for="movementType">Movement Type</label>
-                    <select id="movementType" required>
-                        <option value="IN">Stock In</option>
-                        <option value="OUT">Stock Out</option>
-                        <option value="TRANSFER">Transfer</option>
-                        <option value="ADJUSTMENT">Adjustment</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="movementQuantity">Quantity</label>
-                    <input type="number" id="movementQuantity" required>
-                </div>
-                <div class="form-group">
-                    <label for="movementFromLocation">From Location</label>
-                    <input type="text" id="movementFromLocation">
-                </div>
-                <div class="form-group">
-                    <label for="movementToLocation">To Location</label>
-                    <input type="text" id="movementToLocation">
-                </div>
-                <div class="form-group">
-                    <label for="movementNotes">Notes</label>
-                    <textarea id="movementNotes" rows="3"></textarea>
-                </div>
-                <button type="submit" class="save-btn">Record Movement</button>
             </form>
         </div>
     </div>

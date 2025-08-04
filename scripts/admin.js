@@ -12,15 +12,6 @@ const mockAdminUsers = [
     { id: 3, name: 'Jane Smith', email: 'jane.smith@lafargeholcim.com', role: 'user', status: 'active', lastLogin: '2024-01-15T09:15:00' },
     { id: 4, name: 'Mike Johnson', email: 'mike.johnson@lafargeholcim.com', role: 'user', status: 'inactive' }
 ];
-const mockSearchHistory = [
-    { id: 1, userId: 2, userEmail: 'john.doe@lafargeholcim.com', searchTerm: 'LH001', searchType: 'article', resultsCount: 1, timestamp: '2024-01-17T09:30:00' },
-    { id: 2, userId: 3, userEmail: 'jane.smith@lafargeholcim.com', searchTerm: 'LH003', searchType: 'article', resultsCount: 1, timestamp: '2024-01-16T15:45:00' },
-    { id: 3, userId: 2, userEmail: 'john.doe@lafargeholcim.com', searchTerm: 'Warehouse', searchType: 'Emplacement', resultsCount: 1, timestamp: '2024-01-16T11:20:00' }
-];
-const mockMovements = [
-    { id: 1, itemArticle: 'LH001', itemDescription: 'High quality Portland cement', movementType: 'IN', quantity: 100, fromLocation: 'Supplier', toLocation: 'Warehouse A-1', userId: 1, userEmail: 'admin@lafargeholcim.com', timestamp: '2024-01-15T08:00:00', notes: 'New stock delivery' },
-    { id: 2, itemArticle: 'LH003', itemDescription: 'High strength steel reinforcement bars', movementType: 'OUT', quantity: 50, fromLocation: 'Steel Storage C-2', toLocation: 'Project Site 1', userId: 2, userEmail: 'john.doe@lafargeholcim.com', timestamp: '2024-01-16T10:30:00', notes: 'Site delivery for Foundation work' }
-];
 class DataManager {
     static async initializeData() {
         try {
@@ -35,12 +26,6 @@ class DataManager {
             if (!localStorage.getItem(this.USERS_KEY)) {
                 localStorage.setItem(this.USERS_KEY, JSON.stringify(mockAdminUsers));
             }
-        }
-        if (!localStorage.getItem(this.SEARCH_HISTORY_KEY)) {
-            localStorage.setItem(this.SEARCH_HISTORY_KEY, JSON.stringify(mockSearchHistory));
-        }
-        if (!localStorage.getItem(this.MOVEMENTS_KEY)) {
-            localStorage.setItem(this.MOVEMENTS_KEY, JSON.stringify(mockMovements));
         }
     }
     static async loadItemsFromAPI() {
@@ -97,37 +82,11 @@ class DataManager {
     static getUsers() {
         return JSON.parse(localStorage.getItem(this.USERS_KEY) || '[]');
     }
-    static getSearchHistory() {
-        return JSON.parse(localStorage.getItem(this.SEARCH_HISTORY_KEY) || '[]');
-    }
-    static getMovements() {
-        return JSON.parse(localStorage.getItem(this.MOVEMENTS_KEY) || '[]');
-    }
     static saveItems(items) {
         localStorage.setItem(this.ITEMS_KEY, JSON.stringify(items));
     }
     static saveUsers(users) {
         localStorage.setItem(this.USERS_KEY, JSON.stringify(users));
-    }
-    static saveSearchHistory(history) {
-        localStorage.setItem(this.SEARCH_HISTORY_KEY, JSON.stringify(history));
-    }
-    static saveMovements(movements) {
-        localStorage.setItem(this.MOVEMENTS_KEY, JSON.stringify(movements));
-    }
-    static addSearchHistory(userId, userEmail, searchTerm, searchType, resultsCount) {
-        const history = this.getSearchHistory();
-        const newEntry = {
-            id: history.length + 1,
-            userId,
-            userEmail,
-            searchTerm,
-            searchType,
-            resultsCount,
-            timestamp: new Date().toISOString()
-        };
-        history.push(newEntry);
-        this.saveSearchHistory(history);
     }
     static async refreshData() {
         try {
@@ -140,15 +99,17 @@ class DataManager {
             throw error;
         }
     }
+    static getApiBaseUrl() {
+        return this.API_BASE_URL;
+    }
 }
 DataManager.ITEMS_KEY = 'lafarge_items';
 DataManager.USERS_KEY = 'lafarge_users';
-DataManager.SEARCH_HISTORY_KEY = 'lafarge_search_history';
-DataManager.MOVEMENTS_KEY = 'lafarge_movements';
 DataManager.API_BASE_URL = 'http://localhost:8080';
 class AdminPanel {
     constructor() {
         this.currentSection = 'dashboard';
+        this.preventBackNavigation();
         this.currentUser = this.getCurrentUser();
         if (!this.currentUser || !this.currentUser.isAdmin) {
             this.redirectToLogin();
@@ -228,6 +189,23 @@ class AdminPanel {
         const sessionData = localStorage.getItem('lafarge_session');
         return sessionData ? JSON.parse(sessionData) : null;
     }
+    preventBackNavigation() {
+        window.history.pushState(null, '', window.location.href);
+        window.addEventListener('popstate', (event) => {
+            const currentUser = this.getCurrentUser();
+            if (!currentUser || !currentUser.isAdmin) {
+                window.location.replace('index.html');
+                return;
+            }
+            window.history.pushState(null, '', window.location.href);
+        });
+        window.addEventListener('beforeunload', () => {
+            const currentUser = this.getCurrentUser();
+            if (!currentUser || !currentUser.isAdmin) {
+                localStorage.removeItem('lafarge_session');
+            }
+        });
+    }
     redirectToLogin() {
         window.location.href = 'index.html';
     }
@@ -253,7 +231,12 @@ class AdminPanel {
         this.initializeModals();
     }
     async refreshData() {
+        const refreshBtn = document.getElementById('refreshDataBtn');
         try {
+            if (refreshBtn) {
+                refreshBtn.classList.add('loading');
+                refreshBtn.textContent = 'Refreshing...';
+            }
             this.showLoading();
             await DataManager.refreshData();
             switch (this.currentSection) {
@@ -279,6 +262,12 @@ class AdminPanel {
             this.hideLoading();
             this.showErrorMessage('Failed to refresh data from server.');
             console.error('Refresh failed:', error);
+        }
+        finally {
+            if (refreshBtn) {
+                refreshBtn.classList.remove('loading');
+                refreshBtn.textContent = 'Refresh Data';
+            }
         }
     }
     showSuccessMessage(message) {
@@ -317,15 +306,6 @@ class AdminPanel {
         addUserBtn?.addEventListener('click', () => this.showUserModal());
         closeUserModal?.addEventListener('click', () => this.hideUserModal());
         userForm?.addEventListener('submit', this.handleUserSubmit.bind(this));
-        const addMovementBtn = document.getElementById('addMovementBtn');
-        const movementModal = document.getElementById('movementModal');
-        const closeMovementModal = document.getElementById('closeMovementModal');
-        const movementForm = document.getElementById('movementForm');
-        addMovementBtn?.addEventListener('click', () => this.showMovementModal());
-        closeMovementModal?.addEventListener('click', () => this.hideMovementModal());
-        movementForm?.addEventListener('submit', this.handleMovementSubmit.bind(this));
-        const filterHistoryBtn = document.getElementById('filterHistoryBtn');
-        filterHistoryBtn?.addEventListener('click', this.filterHistory.bind(this));
     }
     updateUserDisplay() {
         const adminUserName = document.getElementById('adminUserName');
@@ -356,62 +336,114 @@ class AdminPanel {
             case 'users':
                 this.loadUsers();
                 break;
-            case 'history':
-                this.loadHistory();
-                break;
-            case 'movements':
-                this.loadMovements();
-                break;
         }
     }
     loadDashboard() {
         const items = DataManager.getItems();
         const users = DataManager.getUsers();
-        const history = DataManager.getSearchHistory();
-        const movements = DataManager.getMovements();
+        const zeroStockItems = items.filter(item => item.Stock === 0);
         const totalItemsEl = document.getElementById('totalItems');
         const totalUsersEl = document.getElementById('totalUsers');
-        const recentSearchesEl = document.getElementById('recentSearches');
-        const recentMovementsEl = document.getElementById('recentMovements');
+        const zeroStockItemsEl = document.getElementById('zeroStockItems');
         if (totalItemsEl)
             totalItemsEl.textContent = items.length.toString();
         if (totalUsersEl)
             totalUsersEl.textContent = users.filter(u => u.status === 'active').length.toString();
-        if (recentSearchesEl)
-            recentSearchesEl.textContent = history.filter(h => this.isRecent(h.timestamp)).length.toString();
-        if (recentMovementsEl)
-            recentMovementsEl.textContent = movements.filter(m => this.isRecent(m.timestamp)).length.toString();
-        this.loadRecentActivity();
+        if (zeroStockItemsEl)
+            zeroStockItemsEl.textContent = zeroStockItems.length.toString();
+        this.initializeDashboardCards();
     }
-    loadRecentActivity() {
-        const recentActivityList = document.getElementById('recentActivityList');
-        if (!recentActivityList)
-            return;
-        const history = DataManager.getSearchHistory();
-        const movements = DataManager.getMovements();
-        const recentHistory = history.filter(h => this.isRecent(h.timestamp)).slice(-5);
-        const recentMovements = movements.filter(m => this.isRecent(m.timestamp)).slice(-5);
-        let activityHTML = '';
-        recentHistory.forEach(h => {
-            activityHTML += `
-                <div class="activity-item">
-                    <p><strong>Search:</strong> ${h.userEmail} searched for "${h.searchTerm}" by ${h.searchType}</p>
-                    <span class="activity-time">${this.formatDateTime(h.timestamp)}</span>
-                </div>
-            `;
-        });
-        recentMovements.forEach(m => {
-            activityHTML += `
-                <div class="activity-item">
-                    <p><strong>Movement:</strong> ${m.userEmail} recorded ${m.movementType} for ${m.itemArticle}</p>
-                    <span class="activity-time">${this.formatDateTime(m.timestamp)}</span>
-                </div>
-            `;
-        });
-        if (activityHTML === '') {
-            activityHTML = '<p class="no-activity">No recent activity</p>';
+    initializeDashboardCards() {
+        const totalItemsCard = document.getElementById('totalItemsCard');
+        const totalUsersCard = document.getElementById('totalUsersCard');
+        const zeroStockCard = document.getElementById('zeroStockCard');
+        if (totalItemsCard) {
+            const newItemsCard = totalItemsCard.cloneNode(true);
+            totalItemsCard.parentNode?.replaceChild(newItemsCard, totalItemsCard);
+            newItemsCard.addEventListener('click', () => {
+                this.switchSection('items');
+            });
+            newItemsCard.style.cursor = 'pointer';
         }
-        recentActivityList.innerHTML = activityHTML;
+        if (totalUsersCard) {
+            const newUsersCard = totalUsersCard.cloneNode(true);
+            totalUsersCard.parentNode?.replaceChild(newUsersCard, totalUsersCard);
+            newUsersCard.addEventListener('click', () => {
+                this.switchSection('users');
+            });
+            newUsersCard.style.cursor = 'pointer';
+        }
+        if (zeroStockCard) {
+            const newZeroStockCard = zeroStockCard.cloneNode(true);
+            zeroStockCard.parentNode?.replaceChild(newZeroStockCard, zeroStockCard);
+            newZeroStockCard.addEventListener('click', () => {
+                this.displayZeroStockItems();
+            });
+            newZeroStockCard.style.cursor = 'pointer';
+        }
+    }
+    displayZeroStockItems() {
+        const items = DataManager.getItems();
+        const zeroStockItems = items.filter(item => item.Stock === 0);
+        const resultsContainer = document.getElementById('zeroStockResults');
+        if (!resultsContainer)
+            return;
+        if (zeroStockItems.length === 0) {
+            resultsContainer.innerHTML = `
+                <div class="zero-stock-header">
+                    <h2>Items Out of Stock</h2>
+                </div>
+                <div class="no-results">No items are currently out of stock.</div>
+            `;
+            resultsContainer.style.display = 'block';
+            return;
+        }
+        let resultsHTML = `
+            <div class="zero-stock-header">
+                <h2>Items Out of Stock (${zeroStockItems.length} items)</h2>
+                <button class="close-btn" onclick="this.parentElement.parentElement.style.display='none'">×</button>
+            </div>
+        `;
+        zeroStockItems.forEach(item => {
+            resultsHTML += `
+                <div class="search-result-item zero-stock-item">
+                    <h3>${item.article}</h3>
+                    <div class="search-result-details">
+                        <div class="detail-item">
+                            <span class="detail-label">Article</span>
+                            <span class="detail-value">${item.article}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Usine</span>
+                            <span class="detail-value">${item.Usine}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Magasin</span>
+                            <span class="detail-value">${item.Magasin}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Emplacement</span>
+                            <span class="detail-value">${item.Emplacement}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Stock</span>
+                            <span class="detail-value stock-empty">0</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Unité de Mesure</span>
+                            <span class="detail-value">${item.Unite_Mesure || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Description</span>
+                            <span class="detail-value">${item.Description}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        resultsContainer.innerHTML = resultsHTML;
+        resultsContainer.style.display = 'block';
+        resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     loadSearch() {
         const items = DataManager.getItems();
@@ -440,11 +472,6 @@ class AdminPanel {
             filteredItems = filteredItems.filter(item => item.Description.toLocaleLowerCase().startsWith(searchByDesc.toLocaleLowerCase()));
         }
         this.displaySearchResults(filteredItems);
-        const searchTerm = searchByArticle || searchByEmplacement || searchByDesc;
-        const searchType = searchByArticle ? 'article' : searchByEmplacement ? 'Emplacement' : 'Description';
-        if (searchTerm && this.currentUser) {
-            DataManager.addSearchHistory(this.currentUser.userId, this.currentUser.email, searchTerm, searchType, filteredItems.length);
-        }
     }
     displaySearchResults(items) {
         const searchResults = document.getElementById('searchResults');
@@ -454,7 +481,7 @@ class AdminPanel {
             searchResults.innerHTML = '<div class="no-results">No items found matching your search criteria.</div>';
             return;
         }
-        let resultsHTML = '<h2>Search Results</h2>';
+        let resultsHTML = `<h2>Search Results (${items.length} items found)</h2>`;
         items.forEach(item => {
             resultsHTML += `
                 <div class="search-result-item">
@@ -517,15 +544,15 @@ class AdminPanel {
                     <td>${item.Description}</td>
                     <td>${item.Emplacement}</td>
                     <td>${item.Stock}</td>
-                    <td>${item.Unite_Mesure || 'N/A'}</td>
                     <td>
-                        <button class="edit-btn" onclick="adminPanel.editItem(${item.id})">Edit</button>
-                        <button class="delete-btn" onclick="adminPanel.deleteItem(${item.id})">Delete</button>
+                        <button class="edit-btn" data-action="edit-item" data-id="${item.id}">Edit</button>
+                        <button class="delete-btn" data-action="delete-item" data-id="${item.id}">Delete</button>
                     </td>
                 </tr>
             `;
         });
         tableBody.innerHTML = tableHTML;
+        this.addItemButtonListeners();
     }
     loadUsers() {
         const users = DataManager.getUsers();
@@ -542,81 +569,50 @@ class AdminPanel {
                     <td>${user.role}</td>
                     <td><span class="${statusClass}">${user.status}</span></td>
                     <td>
-                        <button class="edit-btn" onclick="adminPanel.editUser(${user.id})">Edit</button>
-                        <button class="delete-btn" onclick="adminPanel.deleteUser(${user.id})">Delete</button>
+                        <button class="edit-btn" data-action="edit-user" data-id="${user.id}">Edit</button>
+                        <button class="delete-btn" data-action="delete-user" data-id="${user.id}">Delete</button>
                     </td>
                 </tr>
             `;
         });
         tableBody.innerHTML = tableHTML;
+        this.addUserButtonListeners();
     }
-    loadHistory() {
-        const history = DataManager.getSearchHistory();
-        const users = DataManager.getUsers();
-        const historyUserSelect = document.getElementById('historyUser');
-        if (historyUserSelect) {
-            historyUserSelect.innerHTML = '<option value="">All Users</option>';
-            users.forEach(user => {
-                historyUserSelect.innerHTML += `<option value="${user.email}">${user.name}</option>`;
+    addItemButtonListeners() {
+        const tableBody = document.getElementById('itemsTableBody');
+        if (!tableBody)
+            return;
+        const buttons = tableBody.querySelectorAll('button[data-action]');
+        buttons.forEach(button => {
+            const action = button.getAttribute('data-action');
+            const id = parseInt(button.getAttribute('data-id') || '0');
+            button.addEventListener('click', () => {
+                if (action === 'edit-item') {
+                    this.editItem(id);
+                }
+                else if (action === 'delete-item') {
+                    this.deleteItem(id);
+                }
             });
-        }
-        this.displayHistory(history);
+        });
     }
-    displayHistory(history) {
-        const tableBody = document.getElementById('historyTableBody');
+    addUserButtonListeners() {
+        const tableBody = document.getElementById('usersTableBody');
         if (!tableBody)
             return;
-        let tableHTML = '';
-        history.forEach(h => {
-            tableHTML += `
-                <tr>
-                    <td>${this.formatDateTime(h.timestamp)}</td>
-                    <td>${h.userEmail}</td>
-                    <td>${h.searchTerm}</td>
-                    <td>${h.searchType}</td>
-                    <td>${h.resultsCount}</td>
-                </tr>
-            `;
+        const buttons = tableBody.querySelectorAll('button[data-action]');
+        buttons.forEach(button => {
+            const action = button.getAttribute('data-action');
+            const id = parseInt(button.getAttribute('data-id') || '0');
+            button.addEventListener('click', () => {
+                if (action === 'edit-user') {
+                    this.editUser(id);
+                }
+                else if (action === 'delete-user') {
+                    this.deleteUser(id);
+                }
+            });
         });
-        tableBody.innerHTML = tableHTML;
-    }
-    filterHistory() {
-        const dateFrom = document.getElementById('historyDateFrom').value;
-        const dateTo = document.getElementById('historyDateTo').value;
-        const userEmail = document.getElementById('historyUser').value;
-        let history = DataManager.getSearchHistory();
-        if (dateFrom) {
-            history = history.filter(h => h.timestamp >= dateFrom + 'T00:00:00');
-        }
-        if (dateTo) {
-            history = history.filter(h => h.timestamp <= dateTo + 'T23:59:59');
-        }
-        if (userEmail) {
-            history = history.filter(h => h.userEmail === userEmail);
-        }
-        this.displayHistory(history);
-    }
-    loadMovements() {
-        const movements = DataManager.getMovements();
-        const tableBody = document.getElementById('movementsTableBody');
-        if (!tableBody)
-            return;
-        let tableHTML = '';
-        movements.forEach(m => {
-            tableHTML += `
-                <tr>
-                    <td>${this.formatDateTime(m.timestamp)}</td>
-                    <td>${m.itemArticle}</td>
-                    <td>${m.itemDescription}</td>
-                    <td>${m.movementType}</td>
-                    <td>${m.quantity}</td>
-                    <td>${m.fromLocation}</td>
-                    <td>${m.toLocation}</td>
-                    <td>${m.userEmail}</td>
-                </tr>
-            `;
-        });
-        tableBody.innerHTML = tableHTML;
     }
     showItemModal(item) {
         const modal = document.getElementById('itemModal');
@@ -655,36 +651,158 @@ class AdminPanel {
         const modal = document.getElementById('itemModal');
         modal.style.display = 'none';
     }
-    handleItemSubmit(e) {
+    async handleItemSubmit(e) {
         e.preventDefault();
-        this.hideItemModal();
-        this.loadItems();
+        const form = e.target;
+        const formData = new FormData(form);
+        const itemData = {
+            reference: formData.get('itemArticle'),
+            Usine: formData.get('itemUsine') || 'M107',
+            Magasin: formData.get('itemMagasin') || 'G200',
+            emplacement: formData.get('itemEmplacement'),
+            stock: parseInt(formData.get('itemStock')),
+            desc: formData.get('itemDescription'),
+            unite: formData.get('itemUniteMesure')
+        };
+        if (!itemData.reference || !itemData.emplacement || !itemData.desc || !itemData.unite) {
+            alert('Please fill in all required fields');
+            return;
+        }
+        if (itemData.stock < 0) {
+            alert('Stock quantity cannot be negative');
+            return;
+        }
+        try {
+            const response = await fetch('http://localhost:8080/Pieces/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(itemData)
+            });
+            const result = await response.json();
+            if (response.ok && (result.statusCode === 200 || result.success !== false)) {
+                alert('Item added successfully!');
+                this.hideItemModal();
+                form.reset();
+                await DataManager.loadItemsFromAPI();
+                this.loadItems();
+                if (this.currentSection === 'dashboard') {
+                    this.loadDashboard();
+                }
+            }
+            else {
+                const errorMessage = result.message || result.error || 'Failed to add item';
+                alert(`Error: ${errorMessage}`);
+            }
+        }
+        catch (error) {
+            console.error('Error adding item:', error);
+            if (error instanceof Error) {
+                alert(`Error adding item: ${error.message}`);
+            }
+            else {
+                alert('Error adding item: An unknown error occurred.');
+            }
+        }
     }
     showUserModal(user) {
         const modal = document.getElementById('userModal');
+        const modalTitle = document.getElementById('userModalTitle');
+        const form = document.getElementById('userForm');
+        if (user) {
+            modalTitle.textContent = 'Edit User';
+            document.getElementById('userName').value = user.name;
+            document.getElementById('userEmail').value = user.email;
+            document.getElementById('userRole').value = user.role;
+            document.getElementById('userPassword').value = '';
+        }
+        else {
+            modalTitle.textContent = 'Add User';
+            form.reset();
+        }
         modal.style.display = 'flex';
     }
     hideUserModal() {
         const modal = document.getElementById('userModal');
         modal.style.display = 'none';
     }
-    handleUserSubmit(e) {
+    async handleUserSubmit(e) {
         e.preventDefault();
-        this.hideUserModal();
-        this.loadUsers();
-    }
-    showMovementModal() {
-        const modal = document.getElementById('movementModal');
-        modal.style.display = 'flex';
-    }
-    hideMovementModal() {
-        const modal = document.getElementById('movementModal');
-        modal.style.display = 'none';
-    }
-    handleMovementSubmit(e) {
-        e.preventDefault();
-        this.hideMovementModal();
-        this.loadMovements();
+        const form = e.target;
+        const formData = new FormData(form);
+        const name = document.getElementById('userName').value.trim();
+        const email = document.getElementById('userEmail').value.trim();
+        const role = document.getElementById('userRole').value;
+        const password = document.getElementById('userPassword').value.trim();
+        if (!name || !email || !password) {
+            this.showErrorMessage('Please fill in all required fields.');
+            return;
+        }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            this.showErrorMessage('Please enter a valid email address.');
+            return;
+        }
+        if (password.length < 4) {
+            this.showErrorMessage('Password must be at least 4 characters long.');
+            return;
+        }
+        const userData = {
+            name: name,
+            email: email,
+            password: password,
+            isadmin: role === 'admin'
+        };
+        try {
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Adding User...';
+            submitBtn.disabled = true;
+            const response = await fetch(`${DataManager.getApiBaseUrl()}/users/add`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(userData)
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+            }
+            const result = await response.json();
+            if (result.data) {
+                this.showSuccessMessage('User added successfully!');
+                this.hideUserModal();
+                await DataManager.loadUsersFromAPI();
+                this.loadUsers();
+            }
+            else {
+                throw new Error(result.message || 'Failed to add user');
+            }
+        }
+        catch (error) {
+            console.error('Error adding user:', error);
+            if (error instanceof Error) {
+                if (error.message.includes('username already taken') || error.message.includes('CONFLICT')) {
+                    this.showErrorMessage('A user with this name already exists. Please use a different name.');
+                }
+                else if (error.message.includes('Fill all fields')) {
+                    this.showErrorMessage('Please fill in all required fields.');
+                }
+                else {
+                    this.showErrorMessage(`Failed to add user: ${error.message}`);
+                }
+            }
+            else {
+                this.showErrorMessage('Failed to add user. Please check your connection and try again.');
+            }
+        }
+        finally {
+            const submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.textContent = 'Save User';
+            submitBtn.disabled = false;
+        }
     }
     editItem(id) {
         const items = DataManager.getItems();
@@ -708,12 +826,54 @@ class AdminPanel {
             this.showUserModal(user);
         }
     }
-    deleteUser(id) {
-        if (confirm('Are you sure you want to delete this user?')) {
+    async deleteUser(id) {
+        if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+            return;
+        }
+        try {
             const users = DataManager.getUsers();
-            const updatedUsers = users.filter(u => u.id !== id);
-            DataManager.saveUsers(updatedUsers);
-            this.loadUsers();
+            const user = users.find(u => u.id === id);
+            if (!user) {
+                this.showErrorMessage('User not found.');
+                return;
+            }
+            this.showLoading();
+            const response = await fetch(`${DataManager.getApiBaseUrl()}/users/delete/${encodeURIComponent(user.name)}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+            }
+            const result = await response.json();
+            if (result.data || result.success !== false) {
+                this.showSuccessMessage('User deleted successfully!');
+                await DataManager.loadUsersFromAPI();
+                this.loadUsers();
+            }
+            else {
+                throw new Error(result.message || 'Failed to delete user');
+            }
+        }
+        catch (error) {
+            console.error('Error deleting user:', error);
+            if (error instanceof Error) {
+                if (error.message.includes('User Not Found') || error.message.includes('NOT_FOUND')) {
+                    this.showErrorMessage('User not found. They may have been already deleted.');
+                }
+                else {
+                    this.showErrorMessage(`Failed to delete user: ${error.message}`);
+                }
+            }
+            else {
+                this.showErrorMessage('Failed to delete user. Please check your connection and try again.');
+            }
+        }
+        finally {
+            this.hideLoading();
         }
     }
     isRecent(timestamp) {
@@ -727,8 +887,120 @@ class AdminPanel {
         return new Date(timestamp).toLocaleString();
     }
     logout() {
+        this.showLogoutConfirmation();
+    }
+    showLogoutConfirmation() {
+        const modal = document.createElement('div');
+        modal.id = 'logoutModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            font-family: Arial, sans-serif;
+        `;
+        modal.innerHTML = `
+            <div style="
+                background: white;
+                padding: 30px;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                text-align: center;
+                max-width: 400px;
+                width: 90%;
+            ">
+                <div style="
+                    width: 60px;
+                    height: 60px;
+                    background: #ff6b6b;
+                    border-radius: 50%;
+                    margin: 0 auto 20px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 24px;
+                    color: white;
+                ">⚠</div>
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 22px;">Confirm Logout</h3>
+                <p style="margin: 0 0 25px 0; color: #666; font-size: 16px; line-height: 1.4;">
+                    Are you sure you want to log out? You will need to log in again to access the admin panel.
+                </p>
+                <div style="display: flex; gap: 15px; justify-content: center;">
+                    <button id="cancelLogout" style="
+                        padding: 12px 24px;
+                        border: 2px solid #ddd;
+                        background: white;
+                        color: #666;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 14px;
+                        font-weight: 500;
+                        transition: all 0.2s;
+                    ">Cancel</button>
+                    <button id="confirmLogout" style="
+                        padding: 12px 24px;
+                        border: none;
+                        background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+                        color: white;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 14px;
+                        font-weight: 500;
+                        transition: all 0.2s;
+                    ">Logout</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        const cancelBtn = modal.querySelector('#cancelLogout');
+        const confirmBtn = modal.querySelector('#confirmLogout');
+        cancelBtn.addEventListener('mouseenter', () => {
+            cancelBtn.style.borderColor = '#999';
+            cancelBtn.style.color = '#333';
+        });
+        cancelBtn.addEventListener('mouseleave', () => {
+            cancelBtn.style.borderColor = '#ddd';
+            cancelBtn.style.color = '#666';
+        });
+        confirmBtn.addEventListener('mouseenter', () => {
+            confirmBtn.style.transform = 'translateY(-1px)';
+            confirmBtn.style.boxShadow = '0 4px 12px rgba(238, 90, 36, 0.3)';
+        });
+        confirmBtn.addEventListener('mouseleave', () => {
+            confirmBtn.style.transform = 'translateY(0)';
+            confirmBtn.style.boxShadow = 'none';
+        });
+        cancelBtn.addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+        confirmBtn.addEventListener('click', () => {
+            document.body.removeChild(modal);
+            this.performLogout();
+        });
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        });
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                document.body.removeChild(modal);
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+    }
+    performLogout() {
         localStorage.removeItem('lafarge_session');
-        window.location.href = 'index.html';
+        localStorage.removeItem('lafarge_items');
+        localStorage.removeItem('lafarge_users');
+        window.location.replace('index.html');
     }
 }
 let adminPanel;

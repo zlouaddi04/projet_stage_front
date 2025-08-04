@@ -272,10 +272,11 @@ class AuthFormHandler {
     }
 
     private redirectToPanel(isAdmin: boolean): void {
+        // Use replace to prevent back navigation to login page
         if (isAdmin) {
-            window.location.href = 'admin.html';
+            window.location.replace('admin.html');
         } else {
-            window.location.href = 'user.html';
+            window.location.replace('user.html');
         }
     }
 
