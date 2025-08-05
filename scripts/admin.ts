@@ -378,7 +378,7 @@ class AdminPanel {
             }
             
             this.hideLoading();
-            this.showSuccessMessage('Data refreshed successfully!');
+            this.showSuccessModal('Data refreshed successfully!');
         } catch (error) {
             this.hideLoading();
             this.showErrorMessage('Failed to refresh data from server.');
@@ -392,27 +392,95 @@ class AdminPanel {
         }
     }
 
-    private showSuccessMessage(message: string): void {
-        const successEl = document.createElement('div');
-        successEl.style.cssText = `
-            position: fixed; 
-            top: 20px; 
-            right: 20px; 
-            background: #51cf66; 
-            color: white; 
-            padding: 15px 20px; 
-            border-radius: 5px; 
+    private showSuccessModal(message: string, autoClose: boolean = true): void {
+        // Create success modal
+        const modal = document.createElement('div');
+        modal.id = 'successModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
             z-index: 10000;
             font-family: Arial, sans-serif;
         `;
-        successEl.textContent = message;
-        document.body.appendChild(successEl);
-        
-        setTimeout(() => {
-            if (successEl.parentNode) {
-                successEl.parentNode.removeChild(successEl);
-            }
-        }, 3000);
+
+        modal.innerHTML = `
+            <div style="
+                background: white;
+                padding: 30px;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                text-align: center;
+                max-width: 400px;
+                width: 90%;
+                animation: slideIn 0.3s ease-out;
+            ">
+                <div style="
+                    width: 60px;
+                    height: 60px;
+                    background: linear-gradient(135deg, #51cf66, #40c057);
+                    border-radius: 50%;
+                    margin: 0 auto 20px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 24px;
+                    color: white;
+                ">✓</div>
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 22px;">Success!</h3>
+                <p style="margin: 0 0 20px 0; color: #666; font-size: 16px; line-height: 1.4;">
+                    ${message}
+                </p>
+                ${autoClose ? 
+                    '<div style="color: #999; font-size: 12px;">This message will close automatically...</div>' : 
+                    '<button id="closeSuccessModal" style="padding: 10px 20px; border: none; background: linear-gradient(135deg, #51cf66, #40c057); color: white; border-radius: 6px; cursor: pointer; font-size: 14px;">Close</button>'
+                }
+            </div>
+            <style>
+                @keyframes slideIn {
+                    from { transform: translateY(-50px); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+                @keyframes slideOut {
+                    from { transform: translateY(0); opacity: 1; }
+                    to { transform: translateY(-50px); opacity: 0; }
+                }
+            </style>
+        `;
+
+        document.body.appendChild(modal);
+
+        if (autoClose) {
+            // Auto-close after 3 seconds with animation
+            setTimeout(() => {
+                const modalContent = modal.querySelector('div > div') as HTMLElement;
+                modalContent.style.animation = 'slideOut 0.3s ease-in';
+                setTimeout(() => {
+                    if (modal.parentNode) {
+                        document.body.removeChild(modal);
+                    }
+                }, 300);
+            }, 3000);
+        } else {
+            // Manual close button
+            const closeBtn = modal.querySelector('#closeSuccessModal');
+            closeBtn?.addEventListener('click', () => {
+                document.body.removeChild(modal);
+            });
+
+            // Close on backdrop click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    document.body.removeChild(modal);
+                }
+            });
+        }
     }
 
     private initializeModals(): void {
@@ -814,39 +882,59 @@ class AdminPanel {
         const modal = document.getElementById('itemModal');
         const modalTitle = document.getElementById('itemModalTitle');
         const form = document.getElementById('itemForm') as HTMLFormElement;
+        const articleInput = document.getElementById('itemArticle') as HTMLInputElement;
         
         if (item) {
             modalTitle!.textContent = 'Edit Item';
-            // Populate form with item data
-            (document.getElementById('itemArticle') as HTMLInputElement).value = item.article;
-            (document.getElementById('itemUsine') as HTMLInputElement).value = item.Usine;
-            (document.getElementById('itemMagasin') as HTMLInputElement).value = item.Magasin;
+            // Store the item ID for editing
+            form.setAttribute('data-item-id', item.id.toString());
+            
+            // Populate form with item data - article is read-only when editing
+            articleInput.value = item.article;
+            articleInput.readOnly = true;
+            articleInput.style.backgroundColor = '#f5f5f5';
+            articleInput.style.cursor = 'not-allowed';
+            articleInput.title = 'Article code cannot be modified when editing';
+            
+            (document.getElementById('itemUsine') as HTMLSelectElement).value = item.Usine;
+            (document.getElementById('itemMagasin') as HTMLSelectElement).value = item.Magasin;
             (document.getElementById('itemEmplacement') as HTMLInputElement).value = item.Emplacement;
             (document.getElementById('itemStock') as HTMLInputElement).value = item.Stock.toString();
             (document.getElementById('itemDescription') as HTMLTextAreaElement).value = item.Description;
-            (document.getElementById('itemUniteMesure') as HTMLInputElement).value = item.Unite_Mesure || '';
+            (document.getElementById('itemUniteMesure') as HTMLSelectElement).value = item.Unite_Mesure || '';
         } else {
             modalTitle!.textContent = 'Add Item';
+            form.removeAttribute('data-item-id');
             form.reset();
-        }
-
-        // Populate usine dropdown
-        const items = DataManager.getItems();
-        const usines = [...new Set(items.map(i => i.Usine))];
-        const usineSelect = document.getElementById('itemUsineSelect') as HTMLSelectElement;
-        if (usineSelect) {
-            usineSelect.innerHTML = '';
-            usines.forEach(usine => {
-                usineSelect.innerHTML += `<option value="${usine}">${usine}</option>`;
-            });
-            usineSelect.innerHTML += '<option value="new">Add New Usine...</option>';
-
-            if (item) {
-                usineSelect.value = item.Usine;
-            }
+            
+            // Article field is editable when creating new items
+            articleInput.readOnly = false;
+            articleInput.style.backgroundColor = '';
+            articleInput.style.cursor = '';
+            articleInput.title = '';
+            articleInput.placeholder = 'Enter unique article reference (e.g., LH006)';
         }
 
         modal!.style.display = 'flex';
+    }
+
+    private generateNextArticleCode(): string {
+        const items = DataManager.getItems();
+        
+        // Find the highest LH number
+        let maxNumber = 0;
+        items.forEach(item => {
+            if (item.article.startsWith('LH')) {
+                const numberPart = parseInt(item.article.substring(2));
+                if (!isNaN(numberPart) && numberPart > maxNumber) {
+                    maxNumber = numberPart;
+                }
+            }
+        });
+        
+        // Generate next number with padding
+        const nextNumber = maxNumber + 1;
+        return `LH${nextNumber.toString().padStart(3, '0')}`;
     }
 
     private hideItemModal(): void {
@@ -859,12 +947,14 @@ class AdminPanel {
         
         const form = e.target as HTMLFormElement;
         const formData = new FormData(form);
+        const itemId = form.getAttribute('data-item-id');
+        const isEditing = !!itemId;
         
         // Map form fields to match backend @JsonProperty annotations
         const itemData = {
             reference: formData.get('itemArticle') as string,
-            Usine: formData.get('itemUsine') as string || 'M107',
-            Magasin: formData.get('itemMagasin') as string || 'G200',
+            usine: formData.get('itemUsine') as string || 'M107',
+            magasin: formData.get('itemMagasin') as string || 'G200',
             emplacement: formData.get('itemEmplacement') as string,
             stock: parseInt(formData.get('itemStock') as string),
             desc: formData.get('itemDescription') as string,
@@ -872,7 +962,7 @@ class AdminPanel {
         };
 
         // Basic validation
-        if (!itemData.reference || !itemData.emplacement || !itemData.desc || !itemData.unite) {
+        if (!itemData.reference || !itemData.emplacement || !itemData.desc ) {
             alert('Please fill in all required fields');
             return;
         }
@@ -883,23 +973,40 @@ class AdminPanel {
         }
 
         try {
-            const response = await fetch('http://localhost:8080/Pieces/add', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(itemData)
-            });
+            let response;
+            let successMessage;
+
+            if (isEditing) {
+                // Update existing item
+                response = await fetch(`http://localhost:8080/Pieces/Update`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(itemData)
+                });
+                successMessage = 'Item updated successfully!';
+            } else {
+                // Add new item
+                response = await fetch('http://localhost:8080/Pieces/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(itemData)
+                });
+                successMessage = 'Item added successfully!';
+            }
 
             const result = await response.json();
             
             // Check the API response structure
             if (response.ok && (result.statusCode === 200 || result.success !== false)) {
-                alert('Item added successfully!');
+                this.showSuccessModal(successMessage);
                 this.hideItemModal();
                 form.reset();
                 
-                // Refresh data to show the new item
+                // Refresh data to show the updated item
                 await DataManager.loadItemsFromAPI();
                 this.loadItems();
                 
@@ -909,16 +1016,16 @@ class AdminPanel {
                 }
             } else {
                 // Handle API error response
-                const errorMessage = result.message || result.error || 'Failed to add item';
+                const errorMessage = result.message || result.error || `Failed to ${isEditing ? 'update' : 'add'} item`;
                 alert(`Error: ${errorMessage}`);
             }
             
         } catch (error) {
-            console.error('Error adding item:', error);
+            console.error(`Error ${isEditing ? 'updating' : 'adding'} item:`, error);
             if (error instanceof Error) {
-                alert(`Error adding item: ${error.message}`);
+                alert(`Error ${isEditing ? 'updating' : 'adding'} item: ${error.message}`);
             } else {
-                alert('Error adding item: An unknown error occurred.');
+                alert(`Error ${isEditing ? 'updating' : 'adding'} item: An unknown error occurred.`);
             }
         }
     }
@@ -1012,7 +1119,7 @@ class AdminPanel {
             
             // Check if the API response indicates success
             if (result.data) {
-                this.showSuccessMessage('User added successfully!');
+                this.showSuccessModal('User added successfully!');
                 this.hideUserModal();
                 
                 // Refresh the users list
@@ -1055,12 +1162,203 @@ class AdminPanel {
         }
     }
 
-    public deleteItem(id: number): void {
-        if (confirm('Are you sure you want to delete this item?')) {
-            const items = DataManager.getItems();
-            const updatedItems = items.filter(i => i.id !== id);
-            DataManager.saveItems(updatedItems);
-            this.loadItems();
+    public async deleteItem(id: number): Promise<void> {
+        // Find the item to get its article reference
+        const items = DataManager.getItems();
+        const item = items.find(i => i.id === id);
+        
+        if (!item) {
+            this.showErrorMessage('Item not found.');
+            return;
+        }
+
+        // Show styled confirmation modal instead of browser alert
+        this.showDeleteItemConfirmation(item);
+    }
+
+    private showDeleteItemConfirmation(item: Item): void {
+        // Create delete confirmation modal
+        const modal = document.createElement('div');
+        modal.id = 'deleteItemModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            font-family: Arial, sans-serif;
+        `;
+
+        modal.innerHTML = `
+            <div style="
+                background: white;
+                padding: 30px;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                text-align: center;
+                max-width: 450px;
+                width: 90%;
+            ">
+                <div style="
+                    width: 60px;
+                    height: 60px;
+                    background: #ff6b6b;
+                    border-radius: 50%;
+                    margin: 0 auto 20px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 24px;
+                    color: white;
+                ">🗑</div>
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 22px;">Delete Item</h3>
+                <p style="margin: 0 0 10px 0; color: #666; font-size: 16px; line-height: 1.4;">
+                    Are you sure you want to delete this item?
+                </p>
+                <div style="
+                    background: #f8f9fa;
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin: 15px 0 25px 0;
+                    text-align: left;
+                ">
+                    <div style="font-weight: bold; color: #333; margin-bottom: 8px;">${item.article}</div>
+                    <div style="color: #666; font-size: 14px;">${item.Description}</div>
+                    <div style="color: #666; font-size: 14px; margin-top: 5px;">
+                        Location: ${item.Emplacement} | Stock: ${item.Stock}
+                    </div>
+                </div>
+                <p style="margin: 0 0 25px 0; color: #e74c3c; font-size: 14px; font-weight: 500;">
+                    This action cannot be undone.
+                </p>
+                <div style="display: flex; gap: 15px; justify-content: center;">
+                    <button id="cancelDelete" style="
+                        padding: 12px 24px;
+                        border: 2px solid #ddd;
+                        background: white;
+                        color: #666;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 14px;
+                        font-weight: 500;
+                        transition: all 0.2s;
+                    ">Cancel</button>
+                    <button id="confirmDelete" style="
+                        padding: 12px 24px;
+                        border: none;
+                        background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+                        color: white;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 14px;
+                        font-weight: 500;
+                        transition: all 0.2s;
+                    ">Delete Item</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Add hover effects
+        const cancelBtn = modal.querySelector('#cancelDelete') as HTMLButtonElement;
+        const confirmBtn = modal.querySelector('#confirmDelete') as HTMLButtonElement;
+
+        cancelBtn.addEventListener('mouseenter', () => {
+            cancelBtn.style.borderColor = '#999';
+            cancelBtn.style.color = '#333';
+        });
+        cancelBtn.addEventListener('mouseleave', () => {
+            cancelBtn.style.borderColor = '#ddd';
+            cancelBtn.style.color = '#666';
+        });
+
+        confirmBtn.addEventListener('mouseenter', () => {
+            confirmBtn.style.transform = 'translateY(-1px)';
+            confirmBtn.style.boxShadow = '0 4px 12px rgba(238, 90, 36, 0.3)';
+        });
+        confirmBtn.addEventListener('mouseleave', () => {
+            confirmBtn.style.transform = 'translateY(0)';
+            confirmBtn.style.boxShadow = 'none';
+        });
+
+        // Handle button clicks
+        cancelBtn.addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+
+        confirmBtn.addEventListener('click', async () => {
+            document.body.removeChild(modal);
+            await this.performItemDelete(item);
+        });
+
+        // Close on backdrop click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        });
+
+        // Close on Escape key
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                document.body.removeChild(modal);
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+    }
+
+    private async performItemDelete(item: Item): Promise<void> {
+        try {
+            this.showLoading();
+
+            // Call API to delete item using the article reference
+            const response = await fetch(`http://localhost:8080/Pieces/delete/${encodeURIComponent(item.article)}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            const result = await response.json();
+
+            // Check if the API response indicates success
+            if (response.ok && (result.statusCode === 200 || result.success !== false)) {
+                this.showSuccessModal('Item deleted successfully!');
+                
+                // Refresh data to show updated list
+                await DataManager.loadItemsFromAPI();
+                this.loadItems();
+                
+                // If we're on dashboard, refresh dashboard stats too
+                if (this.currentSection === 'dashboard') {
+                    this.loadDashboard();
+                }
+            } else {
+                const errorMessage = result.message || result.error || 'Failed to delete item';
+                this.showErrorMessage(`Error: ${errorMessage}`);
+            }
+
+        } catch (error) {
+            console.error('Error deleting item:', error);
+            
+            if (error instanceof Error) {
+                if (error.message.includes('Not Found') || error.message.includes('NOT_FOUND')) {
+                    this.showErrorMessage('Item not found. It may have been already deleted.');
+                } else {
+                    this.showErrorMessage(`Failed to delete item: ${error.message}`);
+                }
+            } else {
+                this.showErrorMessage('Failed to delete item. Please check your connection and try again.');
+            }
+        } finally {
+            this.hideLoading();
         }
     }
 
@@ -1073,20 +1371,159 @@ class AdminPanel {
     }
 
     public async deleteUser(id: number): Promise<void> {
-        if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+        // Find the user to get their details for confirmation
+        const users = DataManager.getUsers();
+        const user = users.find(u => u.id === id);
+        
+        if (!user) {
+            this.showErrorMessage('User not found.');
             return;
         }
 
-        try {
-            // Find the user to get their name (which corresponds to username in backend)
-            const users = DataManager.getUsers();
-            const user = users.find(u => u.id === id);
-            
-            if (!user) {
-                this.showErrorMessage('User not found.');
-                return;
-            }
+        // Show styled confirmation modal instead of browser alert
+        this.showDeleteUserConfirmation(user);
+    }
 
+    private showDeleteUserConfirmation(user: AdminUser): void {
+        // Create delete confirmation modal
+        const modal = document.createElement('div');
+        modal.id = 'deleteUserModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            font-family: Arial, sans-serif;
+        `;
+
+        modal.innerHTML = `
+            <div style="
+                background: white;
+                padding: 30px;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                text-align: center;
+                max-width: 450px;
+                width: 90%;
+            ">
+                <div style="
+                    width: 60px;
+                    height: 60px;
+                    background: #ff6b6b;
+                    border-radius: 50%;
+                    margin: 0 auto 20px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 24px;
+                    color: white;
+                ">👤</div>
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 22px;">Delete User</h3>
+                <p style="margin: 0 0 10px 0; color: #666; font-size: 16px; line-height: 1.4;">
+                    Are you sure you want to delete this user?
+                </p>
+                <div style="
+                    background: #f8f9fa;
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin: 15px 0 25px 0;
+                    text-align: left;
+                ">
+                    <div style="font-weight: bold; color: #333; margin-bottom: 8px;">${user.name}</div>
+                    <div style="color: #666; font-size: 14px;">${user.email}</div>
+                    <div style="color: #666; font-size: 14px; margin-top: 5px;">
+                        Role: ${user.role.charAt(0).toUpperCase() + user.role.slice(1)} | Status: ${user.status.charAt(0).toUpperCase() + user.status.slice(1)}
+                    </div>
+                </div>
+                <p style="margin: 0 0 25px 0; color: #e74c3c; font-size: 14px; font-weight: 500;">
+                    This action cannot be undone.
+                </p>
+                <div style="display: flex; gap: 15px; justify-content: center;">
+                    <button id="cancelDeleteUser" style="
+                        padding: 12px 24px;
+                        border: 2px solid #ddd;
+                        background: white;
+                        color: #666;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 14px;
+                        font-weight: 500;
+                        transition: all 0.2s;
+                    ">Cancel</button>
+                    <button id="confirmDeleteUser" style="
+                        padding: 12px 24px;
+                        border: none;
+                        background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+                        color: white;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 14px;
+                        font-weight: 500;
+                        transition: all 0.2s;
+                    ">Delete User</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Add hover effects
+        const cancelBtn = modal.querySelector('#cancelDeleteUser') as HTMLButtonElement;
+        const confirmBtn = modal.querySelector('#confirmDeleteUser') as HTMLButtonElement;
+
+        cancelBtn.addEventListener('mouseenter', () => {
+            cancelBtn.style.borderColor = '#999';
+            cancelBtn.style.color = '#333';
+        });
+        cancelBtn.addEventListener('mouseleave', () => {
+            cancelBtn.style.borderColor = '#ddd';
+            cancelBtn.style.color = '#666';
+        });
+
+        confirmBtn.addEventListener('mouseenter', () => {
+            confirmBtn.style.transform = 'translateY(-1px)';
+            confirmBtn.style.boxShadow = '0 4px 12px rgba(238, 90, 36, 0.3)';
+        });
+        confirmBtn.addEventListener('mouseleave', () => {
+            confirmBtn.style.transform = 'translateY(0)';
+            confirmBtn.style.boxShadow = 'none';
+        });
+
+        // Handle button clicks
+        cancelBtn.addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+
+        confirmBtn.addEventListener('click', async () => {
+            document.body.removeChild(modal);
+            await this.performUserDelete(user);
+        });
+
+        // Close on backdrop click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        });
+
+        // Close on Escape key
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                document.body.removeChild(modal);
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+    }
+
+    private async performUserDelete(user: AdminUser): Promise<void> {
+        try {
             // Show loading state
             this.showLoading();
 
@@ -1107,7 +1544,7 @@ class AdminPanel {
 
             // Check if the API response indicates success
             if (result.data || result.success !== false) {
-                this.showSuccessMessage('User deleted successfully!');
+                this.showSuccessModal('User deleted successfully!');
                 
                 // Refresh the users list
                 await DataManager.loadUsersFromAPI();
