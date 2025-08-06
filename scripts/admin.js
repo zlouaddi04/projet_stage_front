@@ -7,10 +7,10 @@ const mockItems = [
     { id: 5, Usine: 'M108', Magasin: 'G201', article: 'LH005', Emplacement: 'Plant E-1', Stock: 0, Description: 'Pre-mixed concrete for immediate use', Unite_Mesure: 'M3' }
 ];
 const mockAdminUsers = [
-    { id: 1, name: 'Admin User', email: 'admin@lafargeholcim.com', role: 'admin', status: 'active', lastLogin: '2024-01-17T10:30:00' },
-    { id: 2, name: 'John Doe', email: 'john.doe@lafargeholcim.com', role: 'user', status: 'active', lastLogin: '2024-01-16T14:20:00' },
-    { id: 3, name: 'Jane Smith', email: 'jane.smith@lafargeholcim.com', role: 'user', status: 'active', lastLogin: '2024-01-15T09:15:00' },
-    { id: 4, name: 'Mike Johnson', email: 'mike.johnson@lafargeholcim.com', role: 'user', status: 'inactive' }
+    { id: 1, name: 'Admin User', email: 'admin@lafargeholcim.com', role: 'admin', status: 'active', password: 'admin123', lastLogin: '2024-01-17T10:30:00' },
+    { id: 2, name: 'John Doe', email: 'john.doe@lafargeholcim.com', role: 'user', status: 'active', password: 'john2024', lastLogin: '2024-01-16T14:20:00' },
+    { id: 3, name: 'Jane Smith', email: 'jane.smith@lafargeholcim.com', role: 'user', status: 'active', password: 'jane_pwd', lastLogin: '2024-01-15T09:15:00' },
+    { id: 4, name: 'Mike Johnson', email: 'mike.johnson@lafargeholcim.com', role: 'user', status: 'inactive', password: 'mike456' }
 ];
 class DataManager {
     static async initializeData() {
@@ -66,6 +66,7 @@ class DataManager {
                 email: user.email || '',
                 role: user.isadmin ? 'admin' : 'user',
                 status: 'active',
+                password: user.password,
                 lastLogin: undefined
             }));
             localStorage.setItem(this.USERS_KEY, JSON.stringify(convertedUsers));
@@ -623,12 +624,19 @@ class AdminPanel {
         let tableHTML = '';
         users.forEach(user => {
             const statusClass = user.status === 'active' ? 'status-active' : 'status-inactive';
+            const maskedPassword = '•'.repeat(user.password.length);
             tableHTML += `
                 <tr>
                     <td>${user.name}</td>
                     <td>${user.email}</td>
                     <td>${user.role}</td>
                     <td><span class="${statusClass}">${user.status}</span></td>
+                    <td class="password-cell">
+                        <span class="password-display" data-password="${user.password}" data-masked="${maskedPassword}">${maskedPassword}</span>
+                        <button class="password-toggle-btn" data-user-id="${user.id}" title="Toggle password visibility">
+                            <span class="eye-icon">👁</span>
+                        </button>
+                    </td>
                     <td>
                         <button class="edit-btn" data-action="edit-user" data-id="${user.id}">Edit</button>
                         <button class="delete-btn" data-action="delete-user" data-id="${user.id}">Delete</button>
@@ -638,6 +646,7 @@ class AdminPanel {
         });
         tableBody.innerHTML = tableHTML;
         this.addUserButtonListeners();
+        this.addPasswordToggleListeners();
     }
     addItemButtonListeners() {
         const tableBody = document.getElementById('itemsTableBody');
@@ -671,6 +680,39 @@ class AdminPanel {
                 }
                 else if (action === 'delete-user') {
                     this.deleteUser(id);
+                }
+            });
+        });
+    }
+    addPasswordToggleListeners() {
+        const tableBody = document.getElementById('usersTableBody');
+        if (!tableBody)
+            return;
+        const toggleButtons = tableBody.querySelectorAll('.password-toggle-btn');
+        toggleButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                const row = button.closest('tr');
+                const passwordDisplay = row?.querySelector('.password-display');
+                const eyeIcon = button.querySelector('.eye-icon');
+                if (passwordDisplay && eyeIcon) {
+                    const actualPassword = passwordDisplay.getAttribute('data-password');
+                    const maskedPassword = passwordDisplay.getAttribute('data-masked');
+                    const currentText = passwordDisplay.textContent;
+                    if (currentText === maskedPassword) {
+                        passwordDisplay.textContent = actualPassword;
+                        passwordDisplay.style.fontFamily = 'monospace';
+                        passwordDisplay.style.letterSpacing = '1px';
+                        eyeIcon.textContent = '🙈';
+                        button.setAttribute('title', 'Hide password');
+                    }
+                    else {
+                        passwordDisplay.textContent = maskedPassword;
+                        passwordDisplay.style.fontFamily = '';
+                        passwordDisplay.style.letterSpacing = '';
+                        eyeIcon.textContent = '👁';
+                        button.setAttribute('title', 'Show password');
+                    }
                 }
             });
         });

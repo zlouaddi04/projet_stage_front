@@ -778,3 +778,69 @@ body {
     border-color: #e74c3c;
     box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
 }
+
+/* Password Column Styles */
+.password-cell {
+    position: relative;
+    min-width: 140px;
+}
+
+.password-display {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    letter-spacing: 2px;
+    font-size: 14px;
+    color: #2c3e50;
+    padding-right: 35px;
+    word-break: break-all;
+    display: inline-block;
+    min-width: 80px;
+}
+
+.password-toggle-btn {
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    font-size: 16px;
+    line-height: 1;
+    z-index: 1;
+}
+
+.password-toggle-btn:hover {
+    background-color: #f8f9fa;
+    transform: translateY(-50%) scale(1.1);
+}
+
+.password-toggle-btn:active {
+    transform: translateY(-50%) scale(0.95);
+}
+
+.eye-icon {
+    display: inline-block;
+    filter: grayscale(20%);
+    transition: filter 0.2s ease;
+}
+
+.password-toggle-btn:hover .eye-icon {
+    filter: grayscale(0%);
+}
+
+/* Make password column slightly wider */
+.users-table th:nth-child(5),
+.users-table td:nth-child(5) {
+    width: 160px;
+    min-width: 160px;
+}
+
+/* Ensure actions column adjusts */
+.users-table th:nth-child(6),
+.users-table td:nth-child(6) {
+    width: 120px;
+    min-width: 120px;
+}

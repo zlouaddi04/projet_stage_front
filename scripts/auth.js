@@ -60,23 +60,41 @@ class AuthManager {
     static isAuthenticated() {
         return this.getCurrentUser() !== null;
     }
-    static requestPasswordReset(email) {
-        if (!areUsersLoaded()) {
-            return { success: false, message: 'System is still loading. Please try again in a moment.' };
-        }
-        const user = getUserList().find(u => u.email === email);
-        if (user) {
-            const resetRequest = {
-                email,
-                token: this.generateResetToken(),
-                timestamp: new Date().toISOString()
+    static async requestPasswordReset(email) {
+        try {
+            const usersResponse = await fetch('http://localhost:8080/users/getall');
+            if (!usersResponse.ok) {
+                throw new Error('Failed to connect to server');
+            }
+            const users = await usersResponse.json();
+            const user = users.find(u => u.email === email);
+            if (!user) {
+                return { success: false, message: 'Email address not found in our system.' };
+            }
+            const emailData = {
+                toEmail: email,
+                subject: 'LaFarge Holcim - Password Recovery',
+                Body: `Hello ${user.name},\n\nYour password is: ${user.password}\n\nFor security reasons, please consider changing your password after logging in.\n\nBest regards,\nLaFarge Holcim Team`
             };
-            const existingRequests = JSON.parse(localStorage.getItem(this.RESET_REQUESTS_KEY) || '[]');
-            existingRequests.push(resetRequest);
-            localStorage.setItem(this.RESET_REQUESTS_KEY, JSON.stringify(existingRequests));
-            return { success: true, message: 'Password reset link has been sent to your email address.' };
+            const emailResponse = await fetch('http://localhost:8080/Email/send', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(emailData)
+            });
+            if (!emailResponse.ok) {
+                throw new Error('Failed to send email. Please try again later.');
+            }
+            return { success: true, message: 'Your password has been sent to your email address.' };
         }
-        return { success: false, message: 'Email address not found in our system.' };
+        catch (error) {
+            console.error('Password reset error:', error);
+            if (error instanceof Error) {
+                return { success: false, message: error.message };
+            }
+            return { success: false, message: 'An unexpected error occurred. Please try again later.' };
+        }
     }
     static generateResetToken() {
         return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
@@ -139,16 +157,16 @@ class AuthFormHandler {
             this.redirectToPanel(result.user.isadmin);
         }
         else {
-            this.showError(result.message || 'Login failed');
+            this.showErrorModal(result.message || 'Login failed');
         }
     }
     validateLoginInput(email, password) {
         if (!email || !password) {
-            this.showError('Please fill in all fields');
+            this.showErrorModal('Please fill in all fields');
             return false;
         }
         if (!this.isValidEmail(email)) {
-            this.showError('Please enter a valid email address');
+            this.showErrorModal('Please enter a valid email address');
             return false;
         }
         return true;
@@ -157,24 +175,38 @@ class AuthFormHandler {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
     }
-    handleForgotPassword(e) {
+    async handleForgotPassword(e) {
         e.preventDefault();
         const email = this.resetEmailInput.value.trim();
         if (!email) {
-            this.showError('Please enter your email address');
+            this.showErrorModal('Please enter your email address');
             return;
         }
         if (!this.isValidEmail(email)) {
-            this.showError('Please enter a valid email address');
+            this.showErrorModal('Please enter a valid email address');
             return;
         }
-        const result = AuthManager.requestPasswordReset(email);
-        if (result.success) {
-            this.showSuccess(result.message);
-            this.resetEmailInput.value = '';
+        const submitBtn = this.forgotPasswordForm.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Sending...';
+        submitBtn.disabled = true;
+        try {
+            const result = await AuthManager.requestPasswordReset(email);
+            if (result.success) {
+                this.showSuccessModal(result.message);
+                this.resetEmailInput.value = '';
+                this.hideForgotPasswordModal();
+            }
+            else {
+                this.showErrorModal(result.message);
+            }
         }
-        else {
-            this.showError(result.message);
+        catch (error) {
+            this.showErrorModal('An unexpected error occurred. Please try again later.');
+        }
+        finally {
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
         }
     }
     redirectToPanel(isAdmin) {
@@ -203,6 +235,166 @@ class AuthFormHandler {
         setTimeout(() => {
             this.successMessage.style.display = 'none';
         }, 8000);
+    }
+    showSuccessModal(message) {
+        const modal = document.createElement('div');
+        modal.id = 'authSuccessModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            font-family: Arial, sans-serif;
+        `;
+        modal.innerHTML = `
+            <div style="
+                background: white;
+                padding: 30px;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                text-align: center;
+                max-width: 400px;
+                width: 90%;
+                animation: slideIn 0.3s ease-out;
+            ">
+                <div style="
+                    width: 60px;
+                    height: 60px;
+                    background: linear-gradient(135deg, #51cf66, #40c057);
+                    border-radius: 50%;
+                    margin: 0 auto 20px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 24px;
+                    color: white;
+                ">✓</div>
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 22px;">Success!</h3>
+                <p style="margin: 0 0 25px 0; color: #666; font-size: 16px; line-height: 1.4;">
+                    ${message}
+                </p>
+                <button id="closeAuthSuccessModal" style="
+                    padding: 10px 20px;
+                    border: none;
+                    background: linear-gradient(135deg, #51cf66, #40c057);
+                    color: white;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 500;
+                    transition: all 0.2s;
+                ">Close</button>
+            </div>
+            <style>
+                @keyframes slideIn {
+                    from { transform: translateY(-50px); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+            </style>
+        `;
+        document.body.appendChild(modal);
+        const closeBtn = modal.querySelector('#closeAuthSuccessModal');
+        closeBtn?.addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        });
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                document.body.removeChild(modal);
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+    }
+    showErrorModal(message) {
+        const modal = document.createElement('div');
+        modal.id = 'authErrorModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            font-family: Arial, sans-serif;
+        `;
+        modal.innerHTML = `
+            <div style="
+                background: white;
+                padding: 30px;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                text-align: center;
+                max-width: 400px;
+                width: 90%;
+                animation: slideIn 0.3s ease-out;
+            ">
+                <div style="
+                    width: 60px;
+                    height: 60px;
+                    background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+                    border-radius: 50%;
+                    margin: 0 auto 20px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 24px;
+                    color: white;
+                ">⚠</div>
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 22px;">Error</h3>
+                <p style="margin: 0 0 25px 0; color: #666; font-size: 16px; line-height: 1.4;">
+                    ${message}
+                </p>
+                <button id="closeAuthErrorModal" style="
+                    padding: 10px 20px;
+                    border: none;
+                    background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+                    color: white;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 500;
+                    transition: all 0.2s;
+                ">Close</button>
+            </div>
+            <style>
+                @keyframes slideIn {
+                    from { transform: translateY(-50px); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+            </style>
+        `;
+        document.body.appendChild(modal);
+        const closeBtn = modal.querySelector('#closeAuthErrorModal');
+        closeBtn?.addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        });
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                document.body.removeChild(modal);
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
     }
     showForgotPasswordModal(e) {
         e.preventDefault();
