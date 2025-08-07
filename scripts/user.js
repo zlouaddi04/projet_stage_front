@@ -114,6 +114,20 @@ class UserPanel {
         const clearSearchBtn = document.getElementById('clearSearchBtn');
         searchBtn?.addEventListener('click', this.handleSearch.bind(this));
         clearSearchBtn?.addEventListener('click', this.clearSearch.bind(this));
+        const searchInputs = [
+            'searchByArticle',
+            'searchByEmplacement',
+            'searchByDescription'
+        ];
+        searchInputs.forEach(inputId => {
+            const input = document.getElementById(inputId);
+            input?.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.handleSearch();
+                }
+            });
+        });
         const filterHistoryBtn = document.getElementById('filterHistoryBtn');
         filterHistoryBtn?.addEventListener('click', this.filterHistory.bind(this));
         const requestPasswordResetBtn = document.getElementById('requestPasswordResetBtn');
@@ -196,7 +210,7 @@ class UserPanel {
                 filteredItems = filteredItems.filter(item => item.Emplacement.toLowerCase().startsWith(searchByEmplacement.toLowerCase()));
             }
             if (searchByDescription) {
-                filteredItems = filteredItems.filter(item => item.Description.toLowerCase().startsWith(searchByDescription.toLowerCase()));
+                filteredItems = filteredItems.filter(item => item.Description.toLowerCase().includes(searchByDescription.toLowerCase()));
             }
             this.displaySearchResults(filteredItems);
             const searchTerm = searchByArticle || searchByEmplacement || searchByDescription;

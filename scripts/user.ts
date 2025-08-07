@@ -187,6 +187,23 @@ class UserPanel {
         searchBtn?.addEventListener('click', this.handleSearch.bind(this));
         clearSearchBtn?.addEventListener('click', this.clearSearch.bind(this));
 
+        // Add Enter key listeners for search inputs
+        const searchInputs = [
+            'searchByArticle',
+            'searchByEmplacement', 
+            'searchByDescription'
+        ];
+        
+        searchInputs.forEach(inputId => {
+            const input = document.getElementById(inputId) as HTMLInputElement;
+            input?.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.handleSearch();
+                }
+            });
+        });
+
         // History filter
         const filterHistoryBtn = document.getElementById('filterHistoryBtn');
         filterHistoryBtn?.addEventListener('click', this.filterHistory.bind(this));
@@ -303,7 +320,7 @@ class UserPanel {
 
             if (searchByDescription) {
                 filteredItems = filteredItems.filter(item => 
-                    item.Description.toLowerCase().startsWith(searchByDescription.toLowerCase())
+                    item.Description.toLowerCase().includes(searchByDescription.toLowerCase())
                 );
             }
 

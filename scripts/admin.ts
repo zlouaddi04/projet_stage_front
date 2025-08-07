@@ -342,7 +342,25 @@ class AdminPanel {
         const searchBtn = document.getElementById('searchBtn');
         const clearSearchBtn = document.getElementById('clearSearchBtn');
         searchBtn?.addEventListener('click', this.handleSearch.bind(this));
+
         clearSearchBtn?.addEventListener('click', this.clearSearch.bind(this));
+
+        // Add Enter key listeners for search inputs
+        const searchInputs = [
+            'searchByArticle',
+            'searchByEmplacement', 
+            'searchByDesc'
+        ];
+        
+        searchInputs.forEach(inputId => {
+            const input = document.getElementById(inputId) as HTMLInputElement;
+            input?.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.handleSearch();
+                }
+            });
+        });
 
         // Modal handlers
         this.initializeModals();
@@ -716,7 +734,7 @@ class AdminPanel {
         }
 
         if (searchByDesc) {
-            filteredItems = filteredItems.filter(item => item.Description.toLocaleLowerCase().startsWith(searchByDesc.toLocaleLowerCase()));
+            filteredItems = filteredItems.filter(item => item.Description.toLocaleLowerCase().includes(searchByDesc.toLocaleLowerCase()));
         }
 
         this.displaySearchResults(filteredItems);

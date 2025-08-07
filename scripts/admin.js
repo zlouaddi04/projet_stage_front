@@ -229,6 +229,20 @@ class AdminPanel {
         const clearSearchBtn = document.getElementById('clearSearchBtn');
         searchBtn?.addEventListener('click', this.handleSearch.bind(this));
         clearSearchBtn?.addEventListener('click', this.clearSearch.bind(this));
+        const searchInputs = [
+            'searchByArticle',
+            'searchByEmplacement',
+            'searchByDesc'
+        ];
+        searchInputs.forEach(inputId => {
+            const input = document.getElementById(inputId);
+            input?.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.handleSearch();
+                }
+            });
+        });
         this.initializeModals();
     }
     async refreshData() {
@@ -531,7 +545,7 @@ class AdminPanel {
             filteredItems = filteredItems.filter(item => item.Emplacement.toLowerCase().startsWith(searchByEmplacement.toLowerCase()));
         }
         if (searchByDesc) {
-            filteredItems = filteredItems.filter(item => item.Description.toLocaleLowerCase().startsWith(searchByDesc.toLocaleLowerCase()));
+            filteredItems = filteredItems.filter(item => item.Description.toLocaleLowerCase().includes(searchByDesc.toLocaleLowerCase()));
         }
         this.displaySearchResults(filteredItems);
     }
