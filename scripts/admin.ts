@@ -338,6 +338,15 @@ class AdminPanel {
         const refreshBtn = document.getElementById('refreshDataBtn');
         refreshBtn?.addEventListener('click', this.refreshData.bind(this));
 
+        // Individual section refresh buttons
+        const refreshDashboardBtn = document.getElementById('refreshDashboardBtn');
+        const refreshSearchBtn = document.getElementById('refreshSearchBtn');
+        const refreshUsersBtn = document.getElementById('refreshUsersBtn');
+        
+        refreshDashboardBtn?.addEventListener('click', this.refreshData.bind(this));
+        refreshSearchBtn?.addEventListener('click', this.refreshData.bind(this));
+        refreshUsersBtn?.addEventListener('click', this.refreshData.bind(this));
+
         // Search functionality
         const searchBtn = document.getElementById('searchBtn');
         const clearSearchBtn = document.getElementById('clearSearchBtn');
@@ -549,7 +558,7 @@ class AdminPanel {
 
         this.currentSection = section;
 
-        // Load section content
+        // Load section content from cached data only
         switch (section) {
             case 'dashboard':
                 this.loadDashboard();
@@ -794,7 +803,7 @@ class AdminPanel {
     private clearSearch(): void {
         (document.getElementById('searchByArticle') as HTMLInputElement).value = '';
         (document.getElementById('searchByEmplacement') as HTMLInputElement).value = '';
-        (document.getElementById('searchByUsine') as HTMLSelectElement).value = '';
+        (document.getElementById('searchByDesc') as HTMLInputElement).value = '';
         
         const searchResults = document.getElementById('searchResults');
         if (searchResults) {
@@ -833,7 +842,16 @@ class AdminPanel {
     private loadUsers(): void {
         const users = DataManager.getUsers();
         const tableBody = document.getElementById('usersTableBody');
-        if (!tableBody) return;
+        if (!tableBody) {
+            console.error('usersTableBody element not found');
+            return;
+        }
+
+        if (users.length === 0) {
+            // If no users, show message or load mock data
+            tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">No users found. Click refresh to load data from server.</td></tr>';
+            return;
+        }
 
         let tableHTML = '';
         users.forEach(user => {

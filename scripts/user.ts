@@ -168,11 +168,11 @@ class UserPanel {
         // Sidebar navigation
         const menuItems = document.querySelectorAll('.menu-item');
         menuItems.forEach(item => {
-            item.addEventListener('click', async (e) => {
+            item.addEventListener('click', (e) => {
                 e.preventDefault();
                 const section = (item as HTMLElement).getAttribute('data-section');
                 if (section) {
-                    await this.switchSection(section);
+                    this.switchSection(section);
                 }
             });
         });
@@ -207,6 +207,12 @@ class UserPanel {
         // History filter
         const filterHistoryBtn = document.getElementById('filterHistoryBtn');
         filterHistoryBtn?.addEventListener('click', this.filterHistory.bind(this));
+
+        // Refresh buttons
+        const refreshSearchBtn = document.getElementById('refreshSearchBtn');
+        const refreshHistoryBtn = document.getElementById('refreshHistoryBtn');
+        refreshSearchBtn?.addEventListener('click', this.refreshData.bind(this));
+        refreshHistoryBtn?.addEventListener('click', this.refreshData.bind(this));
 
         // Password reset
         const requestPasswordResetBtn = document.getElementById('requestPasswordResetBtn');
@@ -248,7 +254,119 @@ class UserPanel {
         }
     }
 
-    private async switchSection(section: string): Promise<void> {
+    private async refreshData(): Promise<void> {
+        try {
+            // Show loading state
+            this.showLoading();
+            
+            // Refresh data from API
+            await UserDataManager.loadItemsFromAPI();
+            
+            // Refresh current section
+            switch (this.currentSection) {
+                case 'search':
+                    this.loadSearch();
+                    break;
+                case 'history':
+                    this.loadHistory();
+                    break;
+                case 'profile':
+                    this.loadProfile();
+                    break;
+            }
+            
+            this.hideLoading();
+            this.showSuccessMessage('Data refreshed successfully!');
+        } catch (error) {
+            this.hideLoading();
+            this.showErrorMessage('Failed to refresh data from server.');
+            console.error('Refresh failed:', error);
+        }
+    }
+
+    private showLoading(): void {
+        // Create or show loading indicator
+        let loadingEl = document.getElementById('userLoadingIndicator');
+        if (!loadingEl) {
+            loadingEl = document.createElement('div');
+            loadingEl.id = 'userLoadingIndicator';
+            loadingEl.innerHTML = `
+                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 9999;">
+                    <div style="background: white; padding: 20px; border-radius: 8px; text-align: center;">
+                        <div style="margin-bottom: 10px;">Loading...</div>
+                        <div style="width: 50px; height: 50px; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+                    </div>
+                </div>
+                <style>
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+                </style>
+            `;
+            document.body.appendChild(loadingEl);
+        }
+        loadingEl.style.display = 'block';
+    }
+
+    private hideLoading(): void {
+        const loadingEl = document.getElementById('userLoadingIndicator');
+        if (loadingEl) {
+            loadingEl.style.display = 'none';
+        }
+    }
+
+    private showSuccessMessage(message: string): void {
+        // Create a temporary success message
+        const successEl = document.createElement('div');
+        successEl.style.cssText = `
+            position: fixed; 
+            top: 20px; 
+            right: 20px; 
+            background: #27ae60; 
+            color: white; 
+            padding: 15px 20px; 
+            border-radius: 5px; 
+            z-index: 10000;
+            font-family: Arial, sans-serif;
+        `;
+        successEl.textContent = message;
+        document.body.appendChild(successEl);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+            if (successEl.parentNode) {
+                successEl.parentNode.removeChild(successEl);
+            }
+        }, 3000);
+    }
+
+    private showErrorMessage(message: string): void {
+        // Create a temporary error message
+        const errorEl = document.createElement('div');
+        errorEl.style.cssText = `
+            position: fixed; 
+            top: 20px; 
+            right: 20px; 
+            background: #e74c3c; 
+            color: white; 
+            padding: 15px 20px; 
+            border-radius: 5px; 
+            z-index: 10000;
+            font-family: Arial, sans-serif;
+        `;
+        errorEl.textContent = message;
+        document.body.appendChild(errorEl);
+        
+        // Remove after 5 seconds
+        setTimeout(() => {
+            if (errorEl.parentNode) {
+                errorEl.parentNode.removeChild(errorEl);
+            }
+        }, 5000);
+    }
+
+    private switchSection(section: string): void {
         // Hide all sections
         const sections = document.querySelectorAll('.content-section');
         sections.forEach(s => s.classList.remove('active'));
@@ -265,10 +383,10 @@ class UserPanel {
 
         this.currentSection = section;
 
-        // Load section content
+        // Load section content from cached data only
         switch (section) {
             case 'search':
-                await this.loadSearch();
+                this.loadSearch();
                 break;
             case 'history':
                 this.loadHistory();
@@ -283,7 +401,7 @@ class UserPanel {
         sidebar?.classList.remove('active');
     }
 
-    private async loadSearch(): Promise<void> {
+    private loadSearch(): void {
         // Clear any previous search results
         const searchResults = document.getElementById('searchResults');
         if (searchResults) {

@@ -225,6 +225,12 @@ class AdminPanel {
         logoutBtn?.addEventListener('click', this.logout.bind(this));
         const refreshBtn = document.getElementById('refreshDataBtn');
         refreshBtn?.addEventListener('click', this.refreshData.bind(this));
+        const refreshDashboardBtn = document.getElementById('refreshDashboardBtn');
+        const refreshSearchBtn = document.getElementById('refreshSearchBtn');
+        const refreshUsersBtn = document.getElementById('refreshUsersBtn');
+        refreshDashboardBtn?.addEventListener('click', this.refreshData.bind(this));
+        refreshSearchBtn?.addEventListener('click', this.refreshData.bind(this));
+        refreshUsersBtn?.addEventListener('click', this.refreshData.bind(this));
         const searchBtn = document.getElementById('searchBtn');
         const clearSearchBtn = document.getElementById('clearSearchBtn');
         searchBtn?.addEventListener('click', this.handleSearch.bind(this));
@@ -600,7 +606,7 @@ class AdminPanel {
     clearSearch() {
         document.getElementById('searchByArticle').value = '';
         document.getElementById('searchByEmplacement').value = '';
-        document.getElementById('searchByUsine').value = '';
+        document.getElementById('searchByDesc').value = '';
         const searchResults = document.getElementById('searchResults');
         if (searchResults) {
             searchResults.innerHTML = '';
@@ -633,8 +639,14 @@ class AdminPanel {
     loadUsers() {
         const users = DataManager.getUsers();
         const tableBody = document.getElementById('usersTableBody');
-        if (!tableBody)
+        if (!tableBody) {
+            console.error('usersTableBody element not found');
             return;
+        }
+        if (users.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">No users found. Click refresh to load data from server.</td></tr>';
+            return;
+        }
         let tableHTML = '';
         users.forEach(user => {
             const statusClass = user.status === 'active' ? 'status-active' : 'status-inactive';

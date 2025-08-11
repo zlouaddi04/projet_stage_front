@@ -29,7 +29,10 @@
         <main class="main-content">
             <!-- Dashboard Section -->
             <section id="dashboard" class="content-section active">
-                <h1>Dashboard</h1>
+                <div class="section-header">
+                    <h1>Dashboard</h1>
+                    <button class="refresh-btn" id="refreshDashboardBtn">Refresh Data</button>
+                </div>
                 <div class="stats-grid">
                     <div class="stat-card clickable-card" id="totalItemsCard" data-section="items">
                         <h3>Total Items</h3>
@@ -52,7 +55,10 @@
 
             <!-- Search Section -->
             <section id="search" class="content-section">
-                <h1>Search Items</h1>
+                <div class="section-header">
+                    <h1>Search Items</h1>
+                    <button class="refresh-btn" id="refreshSearchBtn">Refresh Data</button>
+                </div>
                 <div class="search-container">
                     <div class="search-form">
                         <div class="form-row">
@@ -109,7 +115,10 @@
 
             <!-- Users Management Section -->
             <section id="users" class="content-section">
-                <h1>Manage Users</h1>
+                <div class="section-header">
+                    <h1>Manage Users</h1>
+                    <button class="refresh-btn" id="refreshUsersBtn">Refresh Data</button>
+                </div>
                 <div class="users-header">
                     <button class="add-btn" id="addUserBtn">Add New User</button>
                 </div>

@@ -836,3 +836,70 @@ body {
         height: 40px;
     }
 }
+
+/* Section Header Styles */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(39, 174, 96, 0.2);
+}
+
+.section-header h2 {
+    color: white;
+    margin: 0;
+    font-size: 1.8rem;
+    font-weight: 600;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.section-header .refresh-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(10px);
+    font-weight: 600;
+    min-width: 120px;
+    transition: all 0.3s ease;
+}
+
+.section-header .refresh-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 255, 255, 0.2);
+}
+
+.section-header .refresh-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.1);
+}
+
+/* Loading state for section header refresh button */
+.section-header .refresh-btn.loading {
+    pointer-events: none;
+    opacity: 0.7;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Responsive section header */
+@media (max-width: 768px) {
+    .section-header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+    
+    .section-header h2 {
+        font-size: 1.5rem;
+    }
+    
+    .section-header .refresh-btn {
+        width: 100%;
+        max-width: 200px;
+    }
+}
