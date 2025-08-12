@@ -1,4 +1,7 @@
 // Type definitions
+type Famille = 'ROULEMENT' | 'ACCOUPLEMENT' | 'COURROIE' | 'PALIER' | 'CONTACTEUR' | 'HUILE' | 'AUTRE';
+type Service = 'ELEC' | 'MEC' | 'GRS';
+
 interface Item {
     id: number;
     Usine: string;
@@ -8,6 +11,8 @@ interface Item {
     Stock: number;
     Description: string;
     Unite_Mesure?: string;
+    famille?: Famille;
+    service?: Service;
 }
 interface BackendItem {
     id: number;
@@ -18,6 +23,8 @@ interface BackendItem {
     stock: number;      // maps to Stock
     desc: string;       // maps to Description
     unite?: string;     // maps to Unite_Mesure
+    famille?: Famille;  // maps to famille
+    service?: Service;  // maps to service
 }
 
 
@@ -34,7 +41,7 @@ interface UserSearchHistory {
     userId: number;
     userEmail: string;
     searchTerm: string;
-    searchType: 'article' | 'Emplacement' | 'Description';
+    searchType: 'article' | 'Emplacement' | 'Description' | 'famille' | 'service';
     resultsCount: number;
     timestamp: string;
 }
@@ -70,7 +77,9 @@ class UserDataManager {
                 Emplacement: backendItem.emplacement,
                 Stock: backendItem.stock,
                 Description: backendItem.desc,
-                Unite_Mesure: backendItem.unite
+                Unite_Mesure: backendItem.unite,
+                famille: backendItem.famille,
+                service: backendItem.service
             }));
             
             localStorage.setItem(this.ITEMS_KEY, JSON.stringify(convertedItems));
@@ -92,7 +101,7 @@ class UserDataManager {
         localStorage.setItem(this.SEARCH_HISTORY_KEY, JSON.stringify(history));
     }
 
-    static addSearchHistory(userId: number, userEmail: string, searchTerm: string, searchType: 'article' | 'Emplacement' | 'Description', resultsCount: number): void {
+    static addSearchHistory(userId: number, userEmail: string, searchTerm: string, searchType: 'article' | 'Emplacement' | 'Description' | 'famille' | 'service', resultsCount: number): void {
         const history = this.getSearchHistory();
         const newEntry: UserSearchHistory = {
             id: history.length + 1,
@@ -110,8 +119,344 @@ class UserDataManager {
 
 // User panel controller class
 class UserPanel {
+    private renderCartWindow(): void {
+        const cartContainer = document.querySelector('#cart .cart-container');
+        if (!cartContainer) return;
+        let html = '';
+        if (this.cart.length === 0) {
+            html += `<div class="no-results">
+                <i class="no-results-icon">🛒</i>
+                <h3>Your cart is empty</h3>
+                <p>Search for items and add them to your cart to place an order.</p>
+            </div>`;
+        } else {
+            html += `<div class="cart-items">
+                <table class="cart-table">
+                    <thead>
+                        <tr>
+                            <th>Article</th>
+                            <th>Description</th>
+                            <th>Stock Available</th>
+                            <th>Quantity</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+            this.cart.forEach((ci, idx) => {
+                html += `<tr>
+                    <td><strong>${ci.item.article}</strong></td>
+                    <td>${ci.item.Description}</td>
+                    <td>${ci.item.Stock}</td>
+                    <td>${ci.quantity}</td>
+                    <td><button class="remove-cart-btn" data-idx="${idx}">Remove</button></td>
+                </tr>`;
+            });
+            html += `</tbody></table>
+            </div>
+            <div class="cart-actions">
+                <button class="confirm-cart-btn" id="confirmCartBtn">Confirm Transaction</button>
+                <button class="clear-cart-btn" id="clearCartBtn">Clear Cart</button>
+            </div>`;
+        }
+        
+        // Add successful transaction section if there are recent successful transactions
+        if (this.lastSuccessfulTransaction.length > 0) {
+            html += `
+            <div class="successful-transaction-section">
+                <h3>Last Successful Transaction</h3>
+                <div class="transaction-summary">
+                    <p>Transaction completed successfully! You can generate a bill for the following items:</p>
+                    <ul>`;
+            this.lastSuccessfulTransaction.forEach(item => {
+                html += `<li>${item.item.article} - Quantity: ${item.quantity}</li>`;
+            });
+            html += `</ul>
+                    <div class="transaction-actions">
+                        <button class="generate-bill-btn" id="generateBillBtn">Generate Bill</button>
+                        <button class="dismiss-transaction-btn" id="dismissTransactionBtn">Dismiss</button>
+                    </div>
+                </div>
+            </div>`;
+        }
+        
+        cartContainer.innerHTML = html;
+        
+        // Add event listeners for remove buttons
+        const removeBtns = cartContainer.querySelectorAll('.remove-cart-btn');
+        removeBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const idx = parseInt((btn as HTMLElement).getAttribute('data-idx') || '0');
+                this.cart.splice(idx, 1);
+                this.renderCartWindow();
+                this.renderCartCount();
+            });
+        });
+        
+        // Add event listeners for action buttons
+        const confirmBtn = cartContainer.querySelector('#confirmCartBtn');
+        confirmBtn?.addEventListener('click', this.confirmCartTransaction.bind(this));
+        
+        const generateBillBtn = cartContainer.querySelector('#generateBillBtn');
+        generateBillBtn?.addEventListener('click', () => {
+            if (this.lastSuccessfulTransaction.length > 0) {
+                this.generatePDFBill(this.lastSuccessfulTransaction);
+            } else {
+                this.showErrorMessage('No recent successful transactions to generate bill for.');
+            }
+        });
+        
+        const dismissTransactionBtn = cartContainer.querySelector('#dismissTransactionBtn');
+        dismissTransactionBtn?.addEventListener('click', () => {
+            this.lastSuccessfulTransaction = [];
+            this.renderCartWindow();
+        });
+        
+        const clearBtn = cartContainer.querySelector('#clearCartBtn');
+        clearBtn?.addEventListener('click', () => {
+            this.cart = [];
+            this.renderCartWindow();
+            this.renderCartCount();
+        });
+    }
+
+    private async confirmCartTransaction(): Promise<void> {
+        if (!this.currentUser) return;
+        if (this.cart.length === 0) {
+            this.showErrorMessage('Cart is empty.');
+            return;
+        }
+        this.showLoading();
+        let successCount = 0;
+        let errorCount = 0;
+        const successfulItems: string[] = [];
+        const failedItems: string[] = [];
+        
+        for (const ci of this.cart) {
+            try {
+                const body = {
+                    user: this.currentUser.username,
+                    reference: ci.item.article,
+                    quantity: ci.quantity
+                };
+                const response = await fetch('http://localhost:8080/Transaction/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const result = await response.json();
+                if (response.ok && (result.statusCode === 200 || result.success !== false)) {
+                    successCount++;
+                    successfulItems.push(`${ci.item.article} (Qty: ${ci.quantity})`);
+                } else {
+                    errorCount++;
+                    failedItems.push(`${ci.item.article} (Qty: ${ci.quantity})`);
+                }
+            } catch (error) {
+                errorCount++;
+                failedItems.push(`${ci.item.article} (Qty: ${ci.quantity})`);
+            }
+        }
+        this.hideLoading();
+        
+        if (successCount > 0) {
+            // Store successful transactions for bill generation
+            this.lastSuccessfulTransaction = this.cart.filter(ci => 
+                successfulItems.some(item => item.includes(ci.item.article))
+            );
+            
+            // Generate PDF bill for successful transactions
+            if (this.lastSuccessfulTransaction.length > 0) {
+                this.generatePDFBill(this.lastSuccessfulTransaction);
+            }
+            
+            this.showSuccessMessage(`${successCount} transaction${successCount > 1 ? 's' : ''} confirmed successfully!`);
+            
+            // Clear cart after successful transactions
+            this.cart = [];
+            this.renderCartWindow();
+            this.renderCartCount();
+        }
+        if (errorCount > 0) {
+            this.showErrorMessage(`${errorCount} transaction${errorCount > 1 ? 's' : ''} failed. Please check stock availability and try again.`);
+        }
+    }
+
+    private async generatePDFBill(cartItems: { item: Item; quantity: number }[]): Promise<void> {
+        try {
+            // @ts-ignore - jsPDF is loaded via script tag
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Create a better logo using canvas
+            const logoDataUrl = this.createLogoDataUrl();
+            
+            // Add logo
+            if (logoDataUrl) {
+                doc.addImage(logoDataUrl, 'PNG', 20, 20, 50, 25);
+            }
+            
+            // Company header
+            doc.setFontSize(16);
+            doc.setFont(undefined, 'bold');
+            doc.text('LaFarge Holcim', 80, 30);
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'normal');
+            doc.text('Inventory Management System', 80, 37);
+            
+            // Invoice title
+            doc.setFontSize(20);
+            doc.setFont(undefined, 'bold');
+            doc.text('TRANSACTION RECEIPT', 20, 60);
+            
+            // Transaction details
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'normal');
+            const currentDate = new Date().toLocaleDateString();
+            const currentTime = new Date().toLocaleTimeString();
+            
+            doc.text(`Date: ${currentDate}`, 20, 75);
+            doc.text(`Time: ${currentTime}`, 20, 82);
+            doc.text(`User: ${this.currentUser?.username || 'N/A'}`, 20, 89);
+            doc.text(`Transaction ID: TXN-${Date.now()}`, 20, 96);
+            
+            // Table header
+            const startY = 110;
+            doc.setFont(undefined, 'bold');
+            doc.text('Item Reference', 20, startY);
+            doc.text('Description', 70, startY);
+            doc.text('Qty', 140, startY);
+            doc.text('Unit', 160, startY);
+            
+            // Draw header line
+            doc.line(20, startY + 2, 190, startY + 2);
+            
+            // Table content
+            doc.setFont(undefined, 'normal');
+            let currentY = startY + 10;
+            let totalItems = 0;
+            
+            cartItems.forEach((cartItem, index) => {
+                if (currentY > 250) { // Start new page if needed
+                    doc.addPage();
+                    currentY = 30;
+                }
+                
+                const item = cartItem.item;
+                const qty = cartItem.quantity;
+                totalItems += qty;
+                
+                // Truncate long descriptions
+                const description = item.Description.length > 25 
+                    ? item.Description.substring(0, 25) + '...' 
+                    : item.Description;
+                
+                doc.text(item.article, 20, currentY);
+                doc.text(description, 70, currentY);
+                doc.text(qty.toString(), 140, currentY);
+                doc.text(item.Unite_Mesure || 'PCS', 160, currentY);
+                
+                currentY += 7;
+            });
+            
+            // Footer line
+            doc.line(20, currentY + 2, 190, currentY + 2);
+            
+            // Summary
+            currentY += 15;
+            doc.setFont(undefined, 'bold');
+            doc.text(`Total Items: ${cartItems.length}`, 20, currentY);
+            doc.text(`Total Quantity: ${totalItems}`, 20, currentY + 7);
+            
+            // Footer
+            currentY += 25;
+            doc.setFont(undefined, 'normal');
+            doc.setFontSize(10);
+
+            
+            // Generate filename with timestamp
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            const filename = `LaFarge_Transaction_${timestamp}.pdf`;
+            
+            // Save the PDF
+            doc.save(filename);
+            
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            this.showErrorMessage('Failed to generate PDF bill. Please try again.');
+        }
+    }
+    
+    private createLogoDataUrl(): string {
+        // Create a professional logo using canvas
+        const canvas = document.createElement('canvas');
+        canvas.width = 250;
+        canvas.height = 125;
+        const ctx = canvas.getContext('2d');
+        
+        if (ctx) {
+            // Background with gradient
+            const gradient = ctx.createLinearGradient(0, 0, 250, 125);
+            gradient.addColorStop(0, '#34495e');
+            gradient.addColorStop(1, '#2c3e50');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 250, 125);
+            
+            // Border
+            ctx.strokeStyle = '#16a085';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(0, 0, 250, 125);
+            
+            // Company name
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 18px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('LaFarge', 125, 40);
+            
+            ctx.font = 'bold 16px Arial';
+            ctx.fillStyle = '#16a085';
+            ctx.fillText('Holcim', 125, 60);
+            
+            // Tagline
+            ctx.font = '12px Arial';
+            ctx.fillStyle = '#ecf0f1';
+            ctx.fillText('Building Progress', 125, 80);
+            
+            // Decorative elements
+            ctx.fillStyle = '#16a085';
+            ctx.beginPath();
+            ctx.arc(30, 30, 8, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.arc(220, 95, 8, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Lines
+            ctx.strokeStyle = '#16a085';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(50, 95);
+            ctx.lineTo(90, 95);
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(160, 95);
+            ctx.lineTo(200, 95);
+            ctx.stroke();
+        }
+        
+        return canvas.toDataURL('image/png');
+    }
+    private renderCartCount(): void {
+        const cartCountEl = document.getElementById('cartCount');
+        if (cartCountEl) {
+            cartCountEl.textContent = this.cart.length > 0 ? `(${this.cart.length})` : '';
+        }
+    }
     private currentUser: UserSession | null;
     private currentSection: string = 'search';
+    private cart: { item: Item; quantity: number }[] = [];
+    private lastSuccessfulTransaction: { item: Item; quantity: number }[] = [];
 
     constructor() {
         // Prevent back navigation to login after session is established
@@ -122,10 +467,10 @@ class UserPanel {
             this.redirectToLogin();
             return;
         }
-        
         this.initializeEventListeners();
         this.updateUserDisplay();
         this.loadSearch(); // This will be async now
+        this.renderCartCount();
     }
 
     private getCurrentUser(): UserSession | null {
@@ -157,6 +502,8 @@ class UserPanel {
             if (!currentUser || currentUser.isAdmin) {
                 localStorage.removeItem('lafarge_session');
             }
+            // Clear cart when session ends
+            this.cart = [];
         });
     }
 
@@ -388,6 +735,9 @@ class UserPanel {
             case 'search':
                 this.loadSearch();
                 break;
+            case 'cart':
+                this.renderCartWindow();
+                break;
             case 'history':
                 this.loadHistory();
                 break;
@@ -413,9 +763,11 @@ class UserPanel {
         const searchByArticle = (document.getElementById('searchByArticle') as HTMLInputElement).value.trim();
         const searchByEmplacement = (document.getElementById('searchByEmplacement') as HTMLInputElement).value.trim();
         const searchByDescription = (document.getElementById('searchByDescription') as HTMLInputElement).value.trim();
+        const searchByFamille = (document.getElementById('searchByFamille') as HTMLSelectElement).value;
+        const searchByService = (document.getElementById('searchByService') as HTMLSelectElement).value;
 
         // Validate that at least one search criteria is provided
-        if (!searchByArticle && !searchByEmplacement && !searchByDescription) {
+        if (!searchByArticle && !searchByEmplacement && !searchByDescription && !searchByFamille && !searchByService) {
             alert('Please provide at least one search criteria.');
             return;
         }
@@ -437,16 +789,52 @@ class UserPanel {
             }
 
             if (searchByDescription) {
+                // Handle multiple words separated by * character
+                const searchTerms = searchByDescription.split('*').map(term => term.trim()).filter(term => term.length > 0);
+                
+                filteredItems = filteredItems.filter(item => {
+                    const itemDescription = item.Description.toLowerCase();
+                    // Check if ALL search terms are included in the description (case insensitive)
+                    return searchTerms.every(term => 
+                        itemDescription.includes(term.toLowerCase())
+                    );
+                });
+            }
+
+            if (searchByFamille) {
                 filteredItems = filteredItems.filter(item => 
-                    item.Description.toLowerCase().includes(searchByDescription.toLowerCase())
+                    item.famille === searchByFamille
+                );
+            }
+
+            if (searchByService) {
+                filteredItems = filteredItems.filter(item => 
+                    item.service === searchByService
                 );
             }
 
             this.displaySearchResults(filteredItems);
 
             // Record search history
-            const searchTerm = searchByArticle || searchByEmplacement || searchByDescription;
-            const searchType = searchByArticle ? 'article' : searchByEmplacement ? 'Emplacement' : 'Description';
+            let searchTerm = '';
+            let searchType: 'article' | 'Emplacement' | 'Description' | 'famille' | 'service' = 'article';
+            
+            if (searchByArticle) {
+                searchTerm = searchByArticle;
+                searchType = 'article';
+            } else if (searchByEmplacement) {
+                searchTerm = searchByEmplacement;
+                searchType = 'Emplacement';
+            } else if (searchByDescription) {
+                searchTerm = searchByDescription; // Keep the original format with * separators
+                searchType = 'Description';
+            } else if (searchByFamille) {
+                searchTerm = searchByFamille;
+                searchType = 'famille';
+            } else if (searchByService) {
+                searchTerm = searchByService;
+                searchType = 'service';
+            }
             
             if (this.currentUser) {
                 UserDataManager.addSearchHistory(
@@ -483,7 +871,7 @@ class UserPanel {
         items.forEach(item => {
             const stockStatus = item.Stock > 0 ? 'In Stock' : 'Out of Stock';
             const stockClass = item.Stock > 0 ? 'in-stock' : 'out-of-stock';
-            
+            const isInCart = this.cart.some(ci => ci.item.id === item.id);
             resultsHTML += `
                 <div class="search-result-item">
                     <h3>${item.article}</h3>
@@ -512,22 +900,412 @@ class UserPanel {
                             <span class="detail-label">Unité de Mesure</span>
                             <span class="detail-value">${item.Unite_Mesure || 'N/A'}</span>
                         </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Famille</span>
+                            <span class="detail-value">${item.famille || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Service</span>
+                            <span class="detail-value">${item.service || 'N/A'}</span>
+                        </div>
                         <div class="detail-item description-item">
                             <span class="detail-label">Description</span>
                             <span class="detail-value">${item.Description}</span>
                         </div>
                     </div>
+                    <div class="item-actions">
+                        <button class="add-to-cart-btn" data-id="${item.id}" ${isInCart || item.Stock <= 0 ? 'disabled' : ''}>
+                            ${item.Stock <= 0 ? 'Out of Stock' : (isInCart ? 'Added to Cart' : 'Add to Cart')}
+                        </button>
+                    </div>
                 </div>
             `;
         });
-
         searchResults.innerHTML = resultsHTML;
+
+        // Add event listeners for add-to-cart buttons
+        const addCartBtns = searchResults.querySelectorAll('.add-to-cart-btn');
+        addCartBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = parseInt((btn as HTMLElement).getAttribute('data-id') || '0');
+                const item = items.find(i => i.id === id);
+                if (item && item.Stock > 0 && !this.cart.some(ci => ci.item.id === item.id)) {
+                    this.addToCart(item);
+                    (btn as HTMLButtonElement).disabled = true;
+                    (btn as HTMLButtonElement).textContent = 'Added to Cart';
+                }
+            });
+        });
+        this.renderCartCount();
+    }
+
+    private addToCart(item: Item): void {
+        // Check if item is out of stock
+        if (item.Stock <= 0) {
+            this.showOutOfStockModal(item);
+            return;
+        }
+        
+        // Show quantity selection modal instead of prompt
+        if (item.Stock > 1) {
+            this.showQuantityModal(item);
+        } else {
+            // If stock is exactly 1, add directly
+            this.cart.push({ item, quantity: 1 });
+            this.renderCartCount();
+        }
+    }
+
+    private showQuantityModal(item: Item): void {
+        // Create quantity selection modal
+        const modal = document.createElement('div');
+        modal.id = 'quantityModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        `;
+
+        modal.innerHTML = `
+            <div style="
+                background: white;
+                border-radius: 15px;
+                padding: 30px;
+                max-width: 400px;
+                width: 90%;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                animation: slideUp 0.3s ease;
+                text-align: center;
+            ">
+                <h3 style="margin: 0 0 15px 0; color: #2c3e50; font-size: 22px;">Add to Cart</h3>
+                <p style="margin: 0 0 20px 0; color: #7f8c8d; line-height: 1.5;">
+                    <strong style="color: #2c3e50;">${item.article}</strong><br>
+                    Available stock: <span style="color: #27ae60; font-weight: 600;">${item.Stock}</span>
+                </p>
+                <div style="margin: 20px 0;">
+                    <label style="display: block; margin-bottom: 10px; color: #2c3e50; font-weight: 500;">Select Quantity:</label>
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
+                        <button id="decreaseQty" style="
+                            background: #3498db;
+                            color: white;
+                            border: none;
+                            border-radius: 50%;
+                            width: 40px;
+                            height: 40px;
+                            font-size: 18px;
+                            font-weight: bold;
+                            cursor: pointer;
+                            transition: all 0.2s ease;
+                        ">-</button>
+                        <input type="number" id="quantityInput" value="1" min="1" max="${item.Stock}" style="
+                            width: 80px;
+                            padding: 12px;
+                            border: 2px solid #ecf0f1;
+                            border-radius: 8px;
+                            font-size: 16px;
+                            text-align: center;
+                            font-weight: 600;
+                            color: #2c3e50;
+                        ">
+                        <button id="increaseQty" style="
+                            background: #3498db;
+                            color: white;
+                            border: none;
+                            border-radius: 50%;
+                            width: 40px;
+                            height: 40px;
+                            font-size: 18px;
+                            font-weight: bold;
+                            cursor: pointer;
+                            transition: all 0.2s ease;
+                        ">+</button>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 15px; margin-top: 30px;">
+                    <button id="cancelQuantity" style="
+                        flex: 1;
+                        padding: 12px 20px;
+                        background: #95a5a6;
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        font-size: 16px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                    ">Cancel</button>
+                    <button id="confirmQuantity" style="
+                        flex: 1;
+                        padding: 12px 20px;
+                        background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        font-size: 16px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
+                    ">Add to Cart</button>
+                </div>
+            </div>
+        `;
+
+        // Add CSS animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            @keyframes slideUp {
+                from { transform: translateY(30px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+            #decreaseQty:hover, #increaseQty:hover {
+                background: #2980b9 !important;
+                transform: scale(1.1);
+            }
+            #cancelQuantity:hover {
+                background: #7f8c8d !important;
+                transform: translateY(-2px);
+            }
+            #confirmQuantity:hover {
+                background: linear-gradient(135deg, #229954 0%, #27ae60 100%) !important;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(39, 174, 96, 0.4) !important;
+            }
+        `;
+        document.head.appendChild(style);
+
+        document.body.appendChild(modal);
+
+        // Get modal elements
+        const quantityInput = modal.querySelector('#quantityInput') as HTMLInputElement;
+        const decreaseBtn = modal.querySelector('#decreaseQty') as HTMLButtonElement;
+        const increaseBtn = modal.querySelector('#increaseQty') as HTMLButtonElement;
+        const cancelBtn = modal.querySelector('#cancelQuantity') as HTMLButtonElement;
+        const confirmBtn = modal.querySelector('#confirmQuantity') as HTMLButtonElement;
+
+        // Quantity controls
+        decreaseBtn.addEventListener('click', () => {
+            const current = parseInt(quantityInput.value);
+            if (current > 1) {
+                quantityInput.value = (current - 1).toString();
+            }
+        });
+
+        increaseBtn.addEventListener('click', () => {
+            const current = parseInt(quantityInput.value);
+            if (current < item.Stock) {
+                quantityInput.value = (current + 1).toString();
+            }
+        });
+
+        // Input validation
+        quantityInput.addEventListener('input', () => {
+            const value = parseInt(quantityInput.value);
+            if (isNaN(value) || value < 1) {
+                quantityInput.value = '1';
+            } else if (value > item.Stock) {
+                quantityInput.value = item.Stock.toString();
+            }
+        });
+
+        // Modal actions
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        };
+
+        const handleOutsideClick = (e: MouseEvent) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        };
+
+        const closeModal = () => {
+            // Remove all event listeners
+            document.removeEventListener('keydown', handleEscape);
+            modal.removeEventListener('click', handleOutsideClick);
+            
+            // Remove modal and style elements
+            modal.remove();
+            style.remove();
+        };
+
+        cancelBtn.addEventListener('click', closeModal);
+
+        confirmBtn.addEventListener('click', () => {
+            const quantity = parseInt(quantityInput.value);
+            if (quantity > 0 && quantity <= item.Stock) {
+                this.cart.push({ item, quantity });
+                this.renderCartCount();
+                closeModal();
+            }
+        });
+
+        // Close on outside click
+        modal.addEventListener('click', handleOutsideClick);
+
+        // Close on Escape key
+        document.addEventListener('keydown', handleEscape);
+
+        // Focus on quantity input
+        quantityInput.focus();
+        quantityInput.select();
+    }
+
+    private showOutOfStockModal(item: Item): void {
+        // Create out of stock modal
+        const modal = document.createElement('div');
+        modal.id = 'outOfStockModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        `;
+
+        modal.innerHTML = `
+            <div style="
+                background: white;
+                border-radius: 15px;
+                padding: 30px;
+                max-width: 400px;
+                width: 90%;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                animation: slideUp 0.3s ease;
+                text-align: center;
+                border-left: 5px solid #e74c3c;
+            ">
+                <div style="
+                    width: 60px;
+                    height: 60px;
+                    background: #e74c3c;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin: 0 auto 20px auto;
+                    color: white;
+                    font-size: 30px;
+                ">⚠️</div>
+                <h3 style="margin: 0 0 15px 0; color: #e74c3c; font-size: 22px;">Item Not Available</h3>
+                <p style="margin: 0 0 10px 0; color: #2c3e50; line-height: 1.5; font-weight: 600;">
+                    ${item.article}
+                </p>
+                <p style="margin: 0 0 20px 0; color: #7f8c8d; line-height: 1.5;">
+                    This item is currently out of stock and cannot be added to your cart.
+                </p>
+                <div style="
+                    background: #ffeaea;
+                    padding: 12px;
+                    border-radius: 8px;
+                    margin-bottom: 25px;
+                    border: 1px solid #e74c3c;
+                ">
+                    <strong style="color: #e74c3c;">Stock Available: 0</strong>
+                </div>
+                <button id="closeOutOfStock" style="
+                    width: 100%;
+                    padding: 12px 20px;
+                    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+                ">OK, I Understand</button>
+            </div>
+        `;
+
+        // Add CSS animations (reuse from quantity modal)
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            @keyframes slideUp {
+                from { transform: translateY(30px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+            #closeOutOfStock:hover {
+                background: linear-gradient(135deg, #2980b9 0%, #1f5f99 100%) !important;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4) !important;
+            }
+        `;
+        document.head.appendChild(style);
+
+        document.body.appendChild(modal);
+
+        // Get modal elements
+        const closeBtn = modal.querySelector('#closeOutOfStock') as HTMLButtonElement;
+
+        // Modal actions
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        };
+
+        const handleOutsideClick = (e: MouseEvent) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        };
+
+        const closeModal = () => {
+            // Remove all event listeners
+            document.removeEventListener('keydown', handleEscape);
+            modal.removeEventListener('click', handleOutsideClick);
+            
+            // Remove modal and style elements
+            modal.remove();
+            style.remove();
+        };
+
+        closeBtn.addEventListener('click', closeModal);
+
+        // Close on outside click
+        modal.addEventListener('click', handleOutsideClick);
+
+        // Close on Escape key
+        document.addEventListener('keydown', handleEscape);
+
+        // Focus on close button
+        closeBtn.focus();
     }
 
     private clearSearch(): void {
         (document.getElementById('searchByArticle') as HTMLInputElement).value = '';
         (document.getElementById('searchByEmplacement') as HTMLInputElement).value = '';
         (document.getElementById('searchByDescription') as HTMLInputElement).value = '';
+        (document.getElementById('searchByFamille') as HTMLSelectElement).value = '';
+        (document.getElementById('searchByService') as HTMLSelectElement).value = '';
         
         const searchResults = document.getElementById('searchResults');
         if (searchResults) {
@@ -810,6 +1588,9 @@ class UserPanel {
     }
 
     private performLogout(): void {
+        // Clear cart data
+        this.cart = [];
+        
         // Clear session data
         localStorage.removeItem('lafarge_session');
         

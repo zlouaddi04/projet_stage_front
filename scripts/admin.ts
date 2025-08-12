@@ -1,5 +1,8 @@
 // Type definitions
-interface Item {
+type AdminFamille = 'ROULEMENT' | 'ACCOUPLEMENT' | 'COURROIE' | 'PALIER' | 'CONTACTEUR' | 'HUILE' | 'AUTRE';
+type AdminService = 'ELEC' | 'MEC' | 'GRS';
+
+interface AdminItem {
     id: number;
     Usine: string;
     Magasin: string;
@@ -8,10 +11,12 @@ interface Item {
     Stock: number;
     Description: string;
     Unite_Mesure?: string;
+    famille?: AdminFamille;
+    service?: AdminService;
 }
 
 // Backend API response interface (matches @JsonProperty annotations)
-interface BackendItem {
+interface AdminBackendItem {
     id: number;
     usine: string;
     magasin: string;
@@ -20,6 +25,8 @@ interface BackendItem {
     stock: number;      // maps to Stock
     desc: string;       // maps to Description
     unite?: string;     // maps to Unite_Mesure
+    famille?: AdminFamille;  // maps to famille
+    service?: AdminService;  // maps to service
 }
 
 interface AdminUser {
@@ -51,7 +58,7 @@ interface UserSession {
 
 
 // Mock data
-const mockItems: Item[] = [
+const mockItems: AdminItem[] = [
     { id: 1, Usine: 'M107', Magasin: 'G200', article: 'LH001', Emplacement: 'Warehouse A-1', Stock: 500, Description: 'High quality Portland cement for general construction', Unite_Mesure: 'KG' },
     { id: 2, Usine: 'M107', Magasin: 'G200', article: 'LH002', Emplacement: 'Equipment Yard B', Stock: 15, Description: 'Electric concrete mixer 350L capacity', Unite_Mesure: 'UNIT' },
     { id: 3, Usine: 'M107', Magasin: 'G200', article: 'LH003', Emplacement: 'Steel Storage C-2', Stock: 1200, Description: 'High strength steel reinforcement bars', Unite_Mesure: 'M' },
@@ -97,10 +104,10 @@ class DataManager {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            const backendItems: BackendItem[] = await response.json();
+            const backendItems: AdminBackendItem[] = await response.json();
             
             // Convert backend format to frontend format
-            const convertedItems: Item[] = backendItems.map(backendItem => ({
+            const convertedItems: AdminItem[] = backendItems.map(backendItem => ({
                 id: backendItem.id,
                 Usine: backendItem.usine,
                 Magasin: backendItem.magasin,
@@ -108,7 +115,9 @@ class DataManager {
                 Emplacement: backendItem.emplacement,
                 Stock: backendItem.stock,
                 Description: backendItem.desc,
-                Unite_Mesure: backendItem.unite
+                Unite_Mesure: backendItem.unite,
+                famille: backendItem.famille,
+                service: backendItem.service
             }));
             
             localStorage.setItem(this.ITEMS_KEY, JSON.stringify(convertedItems));
@@ -144,7 +153,7 @@ class DataManager {
         }
     }
 
-    static getItems(): Item[] {
+    static getItems(): AdminItem[] {
         return JSON.parse(localStorage.getItem(this.ITEMS_KEY) || '[]');
     }
 
@@ -152,7 +161,7 @@ class DataManager {
         return JSON.parse(localStorage.getItem(this.USERS_KEY) || '[]');
     }
 
-    static saveItems(items: Item[]): void {
+    static saveItems(items: AdminItem[]): void {
         localStorage.setItem(this.ITEMS_KEY, JSON.stringify(items));
     }
 
@@ -726,6 +735,8 @@ class AdminPanel {
         const searchByArticle = (document.getElementById('searchByArticle') as HTMLInputElement).value.trim();
         const searchByEmplacement = (document.getElementById('searchByEmplacement') as HTMLInputElement).value.trim();
         const searchByDesc = (document.getElementById('searchByDesc') as HTMLInputElement).value;
+        const searchByFamille = (document.getElementById('searchByFamille') as HTMLSelectElement).value;
+        const searchByService = (document.getElementById('searchByService') as HTMLSelectElement).value;
 
         const items = DataManager.getItems();
         let filteredItems = items;
@@ -743,13 +754,34 @@ class AdminPanel {
         }
 
         if (searchByDesc) {
-            filteredItems = filteredItems.filter(item => item.Description.toLocaleLowerCase().includes(searchByDesc.toLocaleLowerCase()));
+            // Handle multiple words separated by * character
+            const searchTerms = searchByDesc.split('*').map(term => term.trim()).filter(term => term.length > 0);
+            
+            filteredItems = filteredItems.filter(item => {
+                const itemDescription = item.Description.toLowerCase();
+                // Check if ALL search terms are included in the description (case insensitive)
+                return searchTerms.every(term => 
+                    itemDescription.includes(term.toLowerCase())
+                );
+            });
+        }
+
+        if (searchByFamille) {
+            filteredItems = filteredItems.filter(item => 
+                item.famille === searchByFamille
+            );
+        }
+
+        if (searchByService) {
+            filteredItems = filteredItems.filter(item => 
+                item.service === searchByService
+            );
         }
 
         this.displaySearchResults(filteredItems);
     }
 
-    private displaySearchResults(items: Item[]): void {
+    private displaySearchResults(items: AdminItem[]): void {
         const searchResults = document.getElementById('searchResults');
         if (!searchResults) return;
 
@@ -804,6 +836,8 @@ class AdminPanel {
         (document.getElementById('searchByArticle') as HTMLInputElement).value = '';
         (document.getElementById('searchByEmplacement') as HTMLInputElement).value = '';
         (document.getElementById('searchByDesc') as HTMLInputElement).value = '';
+        (document.getElementById('searchByFamille') as HTMLSelectElement).value = '';
+        (document.getElementById('searchByService') as HTMLSelectElement).value = '';
         
         const searchResults = document.getElementById('searchResults');
         if (searchResults) {
@@ -961,7 +995,7 @@ class AdminPanel {
 
 
 
-    private showItemModal(item?: Item): void {
+    private showItemModal(item?: AdminItem): void {
         const modal = document.getElementById('itemModal');
         const modalTitle = document.getElementById('itemModalTitle');
         const form = document.getElementById('itemForm') as HTMLFormElement;
@@ -1259,7 +1293,7 @@ class AdminPanel {
         this.showDeleteItemConfirmation(item);
     }
 
-    private showDeleteItemConfirmation(item: Item): void {
+    private showDeleteItemConfirmation(item: AdminItem): void {
         // Create delete confirmation modal
         const modal = document.createElement('div');
         modal.id = 'deleteItemModal';
@@ -1397,7 +1431,7 @@ class AdminPanel {
         document.addEventListener('keydown', handleEscape);
     }
 
-    private async performItemDelete(item: Item): Promise<void> {
+    private async performItemDelete(item: AdminItem): Promise<void> {
         try {
             this.showLoading();
 

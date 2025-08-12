@@ -18,6 +18,7 @@
             
             <ul class="sidebar-menu">
                 <li><a href="#" data-section="search" class="menu-item active">Search Items</a></li>
+                <li><a href="#" data-section="cart" class="menu-item">My Cart <span id="cartCount"></span></a></li>
                 <li><a href="#" data-section="history" class="menu-item">My Search History</a></li>
                 <li><a href="#" data-section="profile" class="menu-item">Profile</a></li>
                 <li><a href="#" id="logoutBtn" class="menu-item logout">Logout</a></li>
@@ -46,8 +47,35 @@
                         </div>
                         <div class="form-row">
                             <div class="form-group">
+                                <label for="searchByFamille">Famille</label>
+                                <select id="searchByFamille">
+                                    <option value="">Select Famille</option>
+                                    <option value="ROULEMENT">ROULEMENT</option>
+                                    <option value="ACCOUPLEMENT">ACCOUPLEMENT</option>
+                                    <option value="COURROIE">COURROIE</option>
+                                    <option value="PALIER">PALIER</option>
+                                    <option value="CONTACTEUR">CONTACTEUR</option>
+                                    <option value="HUILE">HUILE</option>
+                                    <option value="AUTRE">AUTRE</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="searchByService">Service</label>
+                                <select id="searchByService">
+                                    <option value="">Select Service</option>
+                                    <option value="ELEC">ELEC</option>
+                                    <option value="MEC">MEC</option>
+                                    <option value="GRS">GRS</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
                                 <label for="searchByDescription">Description</label>
-                                <input type="text" id="searchByDescription" placeholder="Enter description">
+                                <input type="text" id="searchByDescription" placeholder="Enter description (use * to separate multiple terms)">
+                                <small style="color: #7f8c8d; font-size: 0.8rem; margin-top: 4px;">
+                                    Example: "steel*pipe*pressure" will find items containing all three words
+                                </small>
                             </div>
                             <div class="form-group">
                                 <button type="button" id="searchBtn" class="search-btn">Search</button>
@@ -58,6 +86,17 @@
                 </div>
                 
                 <div class="search-results" id="searchResults"></div>
+            </section>
+
+            <!-- Cart Section -->
+            <section id="cart" class="content-section">
+                <div class="section-header">
+                    <h1>My Cart</h1>
+                    <button class="refresh-btn" id="refreshCartBtn">Refresh Cart</button>
+                </div>
+                <div class="cart-container">
+                    <!-- Cart content will be dynamically generated -->
+                </div>
             </section>
 
             <!-- History Section -->
@@ -126,6 +165,7 @@
         </main>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script type="module" src="scripts/user.js"></script>
 </body>
 </html>

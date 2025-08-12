@@ -43,7 +43,9 @@ class DataManager {
                 Emplacement: backendItem.emplacement,
                 Stock: backendItem.stock,
                 Description: backendItem.desc,
-                Unite_Mesure: backendItem.unite
+                Unite_Mesure: backendItem.unite,
+                famille: backendItem.famille,
+                service: backendItem.service
             }));
             localStorage.setItem(this.ITEMS_KEY, JSON.stringify(convertedItems));
             console.log('Items loaded from API:', convertedItems.length);
@@ -542,6 +544,8 @@ class AdminPanel {
         const searchByArticle = document.getElementById('searchByArticle').value.trim();
         const searchByEmplacement = document.getElementById('searchByEmplacement').value.trim();
         const searchByDesc = document.getElementById('searchByDesc').value;
+        const searchByFamille = document.getElementById('searchByFamille').value;
+        const searchByService = document.getElementById('searchByService').value;
         const items = DataManager.getItems();
         let filteredItems = items;
         if (searchByArticle) {
@@ -551,7 +555,17 @@ class AdminPanel {
             filteredItems = filteredItems.filter(item => item.Emplacement.toLowerCase().startsWith(searchByEmplacement.toLowerCase()));
         }
         if (searchByDesc) {
-            filteredItems = filteredItems.filter(item => item.Description.toLocaleLowerCase().includes(searchByDesc.toLocaleLowerCase()));
+            const searchTerms = searchByDesc.split('*').map(term => term.trim()).filter(term => term.length > 0);
+            filteredItems = filteredItems.filter(item => {
+                const itemDescription = item.Description.toLowerCase();
+                return searchTerms.every(term => itemDescription.includes(term.toLowerCase()));
+            });
+        }
+        if (searchByFamille) {
+            filteredItems = filteredItems.filter(item => item.famille === searchByFamille);
+        }
+        if (searchByService) {
+            filteredItems = filteredItems.filter(item => item.service === searchByService);
         }
         this.displaySearchResults(filteredItems);
     }
@@ -607,6 +621,8 @@ class AdminPanel {
         document.getElementById('searchByArticle').value = '';
         document.getElementById('searchByEmplacement').value = '';
         document.getElementById('searchByDesc').value = '';
+        document.getElementById('searchByFamille').value = '';
+        document.getElementById('searchByService').value = '';
         const searchResults = document.getElementById('searchResults');
         if (searchResults) {
             searchResults.innerHTML = '';

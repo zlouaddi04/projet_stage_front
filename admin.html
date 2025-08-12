@@ -73,8 +73,35 @@
                         </div>
                         <div class="form-row">
                             <div class="form-group">
+                                <label for="searchByFamille">Famille</label>
+                                <select id="searchByFamille">
+                                    <option value="">Select Famille</option>
+                                    <option value="ROULEMENT">ROULEMENT</option>
+                                    <option value="ACCOUPLEMENT">ACCOUPLEMENT</option>
+                                    <option value="COURROIE">COURROIE</option>
+                                    <option value="PALIER">PALIER</option>
+                                    <option value="CONTACTEUR">CONTACTEUR</option>
+                                    <option value="HUILE">HUILE</option>
+                                    <option value="AUTRE">AUTRE</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="searchByService">Service</label>
+                                <select id="searchByService">
+                                    <option value="">Select Service</option>
+                                    <option value="ELEC">ELEC</option>
+                                    <option value="MEC">MEC</option>
+                                    <option value="GRS">GRS</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
                                 <label for="searchByDesc">Description</label>
-                                <input type="text" id="searchByDesc" placeholder="Enter Description">
+                                <input type="text" id="searchByDesc" placeholder="Enter description (use * to separate multiple terms)">
+                                <small style="color: #7f8c8d; font-size: 0.8rem; margin-top: 4px; display: block;">
+                                    Exemple: "RLT*6005" retourne les descriptions qui contiennent les deux mots 
+                                </small>
                             </div>
                             <div class="form-group">
                                 <button type="button" id="searchBtn" class="search-btn">Search</button>
