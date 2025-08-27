@@ -251,6 +251,17 @@ class AdminPanel {
                 }
             });
         });
+        const articleSearchBtn = document.getElementById('articleSearchBtn');
+        const clearArticleSearchBtn = document.getElementById('clearArticleSearchBtn');
+        const articleSearchInput = document.getElementById('articleSearchInput');
+        articleSearchBtn?.addEventListener('click', this.handleArticleSearch.bind(this));
+        clearArticleSearchBtn?.addEventListener('click', this.clearArticleSearch.bind(this));
+        articleSearchInput?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.handleArticleSearch();
+            }
+        });
         this.initializeModals();
     }
     async refreshData() {
@@ -445,6 +456,7 @@ class AdminPanel {
             const newItemsCard = totalItemsCard.cloneNode(true);
             totalItemsCard.parentNode?.replaceChild(newItemsCard, totalItemsCard);
             newItemsCard.addEventListener('click', () => {
+                this.resetCardStates();
                 this.switchSection('items');
             });
             newItemsCard.style.cursor = 'pointer';
@@ -453,6 +465,7 @@ class AdminPanel {
             const newUsersCard = totalUsersCard.cloneNode(true);
             totalUsersCard.parentNode?.replaceChild(newUsersCard, totalUsersCard);
             newUsersCard.addEventListener('click', () => {
+                this.resetCardStates();
                 this.switchSection('users');
             });
             newUsersCard.style.cursor = 'pointer';
@@ -462,6 +475,11 @@ class AdminPanel {
             zeroStockCard.parentNode?.replaceChild(newZeroStockCard, zeroStockCard);
             newZeroStockCard.addEventListener('click', () => {
                 this.displayZeroStockItems();
+                newZeroStockCard.style.backgroundColor = '#ffeaea';
+                newZeroStockCard.style.borderLeft = '4px solid #e74c3c';
+                newZeroStockCard.style.transform = 'translateY(-3px)';
+                this.resetCardStates();
+                newZeroStockCard.classList.add('card-active-out-of-stock');
             });
             newZeroStockCard.style.cursor = 'pointer';
         }
@@ -529,6 +547,16 @@ class AdminPanel {
         resultsContainer.style.display = 'block';
         resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+    resetCardStates() {
+        const allCards = document.querySelectorAll('.stat-card');
+        allCards.forEach(card => {
+            const cardElement = card;
+            cardElement.classList.remove('card-active-out-of-stock');
+            cardElement.style.backgroundColor = '';
+            cardElement.style.borderLeft = '';
+            cardElement.style.transform = '';
+        });
+    }
     loadSearch() {
         const items = DataManager.getItems();
         const usines = [...new Set(items.map(item => item.Usine))];
@@ -588,12 +616,12 @@ class AdminPanel {
                             <span class="detail-value">${item.article}</span>
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">Usine</span>
-                            <span class="detail-value">${item.Usine}</span>
+                            <span class="detail-label">Famille</span>
+                            <span class="detail-value">${item.famille || 'N/A'}</span>
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">Magasin</span>
-                            <span class="detail-value">${item.Magasin}</span>
+                            <span class="detail-label">Service</span>
+                            <span class="detail-value">${item.service || 'N/A'}</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Emplacement</span>
@@ -627,6 +655,45 @@ class AdminPanel {
         if (searchResults) {
             searchResults.innerHTML = '';
         }
+    }
+    handleArticleSearch() {
+        const articleInput = document.getElementById('articleSearchInput');
+        const searchTerm = articleInput.value.trim();
+        if (!searchTerm) {
+            this.clearArticleSearch();
+            return;
+        }
+        const items = DataManager.getItems();
+        const filteredItems = items.filter(item => item.article.toLowerCase().startsWith(searchTerm.toLowerCase()));
+        this.displayItemsInTable(filteredItems);
+    }
+    clearArticleSearch() {
+        const articleInput = document.getElementById('articleSearchInput');
+        articleInput.value = '';
+        this.loadItems();
+    }
+    displayItemsInTable(items) {
+        const tableBody = document.getElementById('itemsTableBody');
+        if (!tableBody)
+            return;
+        let tableHTML = '';
+        items.forEach(item => {
+            tableHTML += `
+                <tr>
+                    <td>${item.id}</td>
+                    <td>${item.article}</td>
+                    <td>${item.Description}</td>
+                    <td>${item.Emplacement}</td>
+                    <td>${item.Stock}</td>
+                    <td>
+                        <button class="edit-btn" data-action="edit-item" data-id="${item.id}">Edit</button>
+                        <button class="delete-btn" data-action="delete-item" data-id="${item.id}">Delete</button>
+                    </td>
+                </tr>
+            `;
+        });
+        tableBody.innerHTML = tableHTML;
+        this.addItemButtonListeners();
     }
     loadItems() {
         const items = DataManager.getItems();
@@ -680,7 +747,6 @@ class AdminPanel {
                         </button>
                     </td>
                     <td>
-                        <button class="edit-btn" data-action="edit-user" data-id="${user.id}">Edit</button>
                         <button class="delete-btn" data-action="delete-user" data-id="${user.id}">Delete</button>
                     </td>
                 </tr>
@@ -717,10 +783,7 @@ class AdminPanel {
             const action = button.getAttribute('data-action');
             const id = parseInt(button.getAttribute('data-id') || '0');
             button.addEventListener('click', () => {
-                if (action === 'edit-user') {
-                    this.editUser(id);
-                }
-                else if (action === 'delete-user') {
+                if (action === 'delete-user') {
                     this.deleteUser(id);
                 }
             });
@@ -772,8 +835,8 @@ class AdminPanel {
             articleInput.style.backgroundColor = '#f5f5f5';
             articleInput.style.cursor = 'not-allowed';
             articleInput.title = 'Article code cannot be modified when editing';
-            document.getElementById('itemUsine').value = item.Usine;
-            document.getElementById('itemMagasin').value = item.Magasin;
+            document.getElementById('itemFamille').value = item.famille || '';
+            document.getElementById('itemService').value = item.service || '';
             document.getElementById('itemEmplacement').value = item.Emplacement;
             document.getElementById('itemStock').value = item.Stock.toString();
             document.getElementById('itemDescription').value = item.Description;
@@ -817,14 +880,16 @@ class AdminPanel {
         const isEditing = !!itemId;
         const itemData = {
             reference: formData.get('itemArticle'),
-            usine: formData.get('itemUsine') || 'M107',
-            magasin: formData.get('itemMagasin') || 'G200',
+            famille: formData.get('itemFamille'),
+            service: formData.get('itemService'),
             emplacement: formData.get('itemEmplacement'),
             stock: parseInt(formData.get('itemStock')),
             desc: formData.get('itemDescription'),
+            usine: 'M107',
+            magasin: 'G200',
             unite: formData.get('itemUniteMesure')
         };
-        if (!itemData.reference || !itemData.emplacement || !itemData.desc) {
+        if (!itemData.reference || !itemData.famille || !itemData.service || !itemData.emplacement || !itemData.desc) {
             alert('Please fill in all required fields');
             return;
         }

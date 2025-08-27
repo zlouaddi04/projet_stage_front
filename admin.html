@@ -117,6 +117,16 @@
             <!-- Items Management Section -->
             <section id="items" class="content-section">
                 <h1>Manage Items</h1>
+                
+                <!-- Article Search -->
+                <div class="search-section">
+                    <div class="search-container">
+                        <input type="text" id="articleSearchInput" placeholder="Search by Article Code...">
+                        <button id="articleSearchBtn" class="search-btn">Search</button>
+                        <button id="clearArticleSearchBtn" class="clear-btn">Clear</button>
+                    </div>
+                </div>
+                
                 <div class="items-header">
                     <button class="add-btn" id="addItemBtn">Add New Item</button>
                     <button class="refresh-btn" id="refreshDataBtn">Refresh Data</button>
@@ -184,17 +194,25 @@
                     <input type="text" id="itemArticle" name="itemArticle" required>
                 </div>
                 <div class="form-group">
-                    <label for="itemUsine">Usine</label>
-                    <select id="itemUsine" name="itemUsine">
-                        <option value="M107">M107</option>
-                        <option value="M108">M108</option>
+                    <label for="itemFamille">Famille</label>
+                    <select id="itemFamille" name="itemFamille" required>
+                        <option value="">Select Famille</option>
+                        <option value="ROULEMENT">ROULEMENT</option>
+                        <option value="ACCOUPLEMENT">ACCOUPLEMENT</option>
+                        <option value="COURROIE">COURROIE</option>
+                        <option value="PALIER">PALIER</option>
+                        <option value="CONTACTEUR">CONTACTEUR</option>
+                        <option value="HUILE">HUILE</option>
+                        <option value="AUTRE">AUTRE</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="itemMagasin">Magasin</label>
-                    <select id="itemMagasin" name="itemMagasin">
-                        <option value="G200">G200</option>
-                        <option value="G201">G201</option>
+                    <label for="itemService">Service</label>
+                    <select id="itemService" name="itemService" required>
+                        <option value="">Select Service</option>
+                        <option value="ELEC">ELEC</option>
+                        <option value="MEC">MEC</option>
+                        <option value="GRS">GRS</option>
                     </select>
                 </div>
                 <div class="form-group">

@@ -287,21 +287,33 @@ class UserPanel {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             
-            // Create a better logo using canvas
-            const logoDataUrl = this.createLogoDataUrl();
+            // Generate filename with timestamp
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            const filename = `LaFarge_Transaction_${timestamp}.pdf`;
+            
+            // Try to load logo image first
+            const logoImage = await this.loadLogoImage();
             
             // Add logo
-            if (logoDataUrl) {
-                doc.addImage(logoDataUrl, 'PNG', 20, 20, 50, 25);
+            if (logoImage) {
+                doc.addImage(logoImage, 'PNG', 20, 20, 35, 30);
+            } else {
+                // Fallback to canvas-created logo
+                const logoDataUrl = this.createLogoDataUrl();
+                if (logoDataUrl) {
+                    doc.addImage(logoDataUrl, 'PNG', 20, 20, 35, 30);
+                }
             }
             
             // Company header
             doc.setFontSize(16);
             doc.setFont(undefined, 'bold');
-            doc.text('LaFarge Holcim', 80, 30);
+            doc.text('LaFarge Holcim Maroc', 80, 30);
+            doc.setFontSize(14);
+            doc.text('Usine Bouskoura - Service Magasin',80,37)
             doc.setFontSize(12);
             doc.setFont(undefined, 'normal');
-            doc.text('Inventory Management System', 80, 37);
+            doc.text('Inventory Management System', 80, 44);
             
             // Invoice title
             doc.setFontSize(20);
@@ -371,11 +383,8 @@ class UserPanel {
             currentY += 25;
             doc.setFont(undefined, 'normal');
             doc.setFontSize(10);
-
-            
-            // Generate filename with timestamp
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-            const filename = `LaFarge_Transaction_${timestamp}.pdf`;
+            doc.text('Thank you for using LaFarge Holcim Inventory System', 20, currentY);
+            doc.text('Generated on: ' + new Date().toLocaleString(), 20, currentY + 7);
             
             // Save the PDF
             doc.save(filename);
@@ -384,6 +393,30 @@ class UserPanel {
             console.error('Error generating PDF:', error);
             this.showErrorMessage('Failed to generate PDF bill. Please try again.');
         }
+    }
+
+    private async loadLogoImage(): Promise<string | null> {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                // Create canvas to convert image to data URL
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0);
+                    resolve(canvas.toDataURL('image/png'));
+                } else {
+                    resolve(null);
+                }
+            };
+            img.onerror = () => {
+                console.warn('Could not load logo image, will use canvas fallback');
+                resolve(null);
+            };
+            img.src = 'images/lafarge_logo.png';
+        });
     }
     
     private createLogoDataUrl(): string {

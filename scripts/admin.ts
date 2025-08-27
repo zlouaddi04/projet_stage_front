@@ -380,6 +380,22 @@ class AdminPanel {
             });
         });
 
+        // Article search functionality
+        const articleSearchBtn = document.getElementById('articleSearchBtn');
+        const clearArticleSearchBtn = document.getElementById('clearArticleSearchBtn');
+        const articleSearchInput = document.getElementById('articleSearchInput') as HTMLInputElement;
+
+        articleSearchBtn?.addEventListener('click', this.handleArticleSearch.bind(this));
+        clearArticleSearchBtn?.addEventListener('click', this.clearArticleSearch.bind(this));
+
+        // Add Enter key listener for article search
+        articleSearchInput?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.handleArticleSearch();
+            }
+        });
+
         // Modal handlers
         this.initializeModals();
     }
@@ -614,6 +630,7 @@ class AdminPanel {
             totalItemsCard.parentNode?.replaceChild(newItemsCard, totalItemsCard);
             
             newItemsCard.addEventListener('click', () => {
+                this.resetCardStates();
                 this.switchSection('items');
             });
             
@@ -626,6 +643,7 @@ class AdminPanel {
             totalUsersCard.parentNode?.replaceChild(newUsersCard, totalUsersCard);
             
             newUsersCard.addEventListener('click', () => {
+                this.resetCardStates();
                 this.switchSection('users');
             });
             
@@ -639,6 +657,16 @@ class AdminPanel {
             
             newZeroStockCard.addEventListener('click', () => {
                 this.displayZeroStockItems();
+                // Change card color when clicked to indicate active state
+                newZeroStockCard.style.backgroundColor = '#ffeaea';
+                newZeroStockCard.style.borderLeft = '4px solid #e74c3c';
+                newZeroStockCard.style.transform = 'translateY(-3px)';
+                
+                // Reset other cards to default state
+                this.resetCardStates();
+                
+                // Add active class for consistent styling
+                newZeroStockCard.classList.add('card-active-out-of-stock');
             });
             
             newZeroStockCard.style.cursor = 'pointer';
@@ -713,6 +741,20 @@ class AdminPanel {
         
         // Scroll to the results
         resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    private resetCardStates(): void {
+        // Reset all stat cards to their default state
+        const allCards = document.querySelectorAll('.stat-card');
+        allCards.forEach(card => {
+            const cardElement = card as HTMLElement;
+            // Remove any active classes
+            cardElement.classList.remove('card-active-out-of-stock');
+            // Reset inline styles to default
+            cardElement.style.backgroundColor = '';
+            cardElement.style.borderLeft = '';
+            cardElement.style.transform = '';
+        });
     }
 
 
@@ -801,12 +843,12 @@ class AdminPanel {
                             <span class="detail-value">${item.article}</span>
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">Usine</span>
-                            <span class="detail-value">${item.Usine}</span>
+                            <span class="detail-label">Famille</span>
+                            <span class="detail-value">${item.famille || 'N/A'}</span>
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">Magasin</span>
-                            <span class="detail-value">${item.Magasin}</span>
+                            <span class="detail-label">Service</span>
+                            <span class="detail-value">${item.service || 'N/A'}</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Emplacement</span>
@@ -843,6 +885,58 @@ class AdminPanel {
         if (searchResults) {
             searchResults.innerHTML = '';
         }
+    }
+
+    private handleArticleSearch(): void {
+        const articleInput = document.getElementById('articleSearchInput') as HTMLInputElement;
+        const searchTerm = articleInput.value.trim();
+        
+        if (!searchTerm) {
+            this.clearArticleSearch();
+            return;
+        }
+
+        const items = DataManager.getItems();
+        // Use the same logic as the search window - startsWith for article search
+        const filteredItems = items.filter(item => 
+            item.article.toLowerCase().startsWith(searchTerm.toLowerCase())
+        );
+
+        this.displayItemsInTable(filteredItems);
+    }
+
+    private clearArticleSearch(): void {
+        const articleInput = document.getElementById('articleSearchInput') as HTMLInputElement;
+        articleInput.value = '';
+        
+        // Show all items
+        this.loadItems();
+    }
+
+    private displayItemsInTable(items: AdminItem[]): void {
+        const tableBody = document.getElementById('itemsTableBody');
+        if (!tableBody) return;
+
+        let tableHTML = '';
+        items.forEach(item => {
+            tableHTML += `
+                <tr>
+                    <td>${item.id}</td>
+                    <td>${item.article}</td>
+                    <td>${item.Description}</td>
+                    <td>${item.Emplacement}</td>
+                    <td>${item.Stock}</td>
+                    <td>
+                        <button class="edit-btn" data-action="edit-item" data-id="${item.id}">Edit</button>
+                        <button class="delete-btn" data-action="delete-item" data-id="${item.id}">Delete</button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        tableBody.innerHTML = tableHTML;
+        // Use the existing method for button event listeners
+        this.addItemButtonListeners();
     }
 
     private loadItems(): void {
@@ -904,7 +998,6 @@ class AdminPanel {
                         </button>
                     </td>
                     <td>
-                        <button class="edit-btn" data-action="edit-user" data-id="${user.id}">Edit</button>
                         <button class="delete-btn" data-action="delete-user" data-id="${user.id}">Delete</button>
                     </td>
                 </tr>
@@ -947,9 +1040,7 @@ class AdminPanel {
             const id = parseInt(button.getAttribute('data-id') || '0');
             
             button.addEventListener('click', () => {
-                if (action === 'edit-user') {
-                    this.editUser(id);
-                } else if (action === 'delete-user') {
+                if (action === 'delete-user') {
                     this.deleteUser(id);
                 }
             });
@@ -1013,8 +1104,8 @@ class AdminPanel {
             articleInput.style.cursor = 'not-allowed';
             articleInput.title = 'Article code cannot be modified when editing';
             
-            (document.getElementById('itemUsine') as HTMLSelectElement).value = item.Usine;
-            (document.getElementById('itemMagasin') as HTMLSelectElement).value = item.Magasin;
+            (document.getElementById('itemFamille') as HTMLSelectElement).value = item.famille || '';
+            (document.getElementById('itemService') as HTMLSelectElement).value = item.service || '';
             (document.getElementById('itemEmplacement') as HTMLInputElement).value = item.Emplacement;
             (document.getElementById('itemStock') as HTMLInputElement).value = item.Stock.toString();
             (document.getElementById('itemDescription') as HTMLTextAreaElement).value = item.Description;
@@ -1070,16 +1161,18 @@ class AdminPanel {
         // Map form fields to match backend @JsonProperty annotations
         const itemData = {
             reference: formData.get('itemArticle') as string,
-            usine: formData.get('itemUsine') as string || 'M107',
-            magasin: formData.get('itemMagasin') as string || 'G200',
+            famille: formData.get('itemFamille') as string,
+            service: formData.get('itemService') as string,
             emplacement: formData.get('itemEmplacement') as string,
             stock: parseInt(formData.get('itemStock') as string),
             desc: formData.get('itemDescription') as string,
+            usine:'M107' as string,
+            magasin:'G200' as string,
             unite: formData.get('itemUniteMesure') as string
         };
 
         // Basic validation
-        if (!itemData.reference || !itemData.emplacement || !itemData.desc ) {
+        if (!itemData.reference || !itemData.famille || !itemData.service || !itemData.emplacement || !itemData.desc ) {
             alert('Please fill in all required fields');
             return;
         }
