@@ -2,17 +2,16 @@
 interface User {
     id: number;
     name: string;
-    email: string;
+    email?: string;
     password: string;
-    role: 'admin' | 'user';
-    status: 'active' | 'inactive';
+    isadmin: boolean;
 }
 
 interface UserSession {
     userId: number;
     email: string;
-    role: string;
-    name: string;
+    isAdmin: boolean;
+    username: string;
     loginTime: string;
 }
 
@@ -28,11 +27,45 @@ interface PasswordResetResult {
 }
 
 // Mock users database
-const mockUsers: User[] = [
-    { id: 1, name: 'Admin User', email: 'admin@lafargeholcim.com', password: 'admin123', role: 'admin', status: 'active' },
-    { id: 2, name: 'John Doe', email: 'john.doe@lafargeholcim.com', password: 'user123', role: 'user', status: 'active' },
-    { id: 3, name: 'Jane Smith', email: 'jane.smith@lafargeholcim.com', password: 'user456', role: 'user', status: 'active' }
-];
+ async function fetchUsers(url: string): Promise<User[]> {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Failed to fetch user");
+        return response.json() as Promise<User[]>; // Type assertion
+}
+
+let globalUserList: User[] = [];
+let isUsersLoaded = false;
+
+async function initializeUserList(): Promise<void> {
+  try {
+    globalUserList = await fetchUsers("http://localhost:8080/users/getall");
+    isUsersLoaded = true;
+    console.log("Users loaded:", globalUserList);
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    // Fallback to mock data if API fails
+    globalUserList = [
+      { id: 1, name: "Admin User", email: "admin@lafarge.com", password: "admin123", isadmin: true },
+      { id: 2, name: "Regular User", email: "user@lafarge.com", password: "user123", isadmin: false }
+    ];
+    isUsersLoaded = true;
+    console.log("Using fallback mock data");
+  }
+}
+
+// Function to get the global user list
+function getUserList(): User[] {
+  return globalUserList;
+}
+
+// Function to check if users are loaded
+function areUsersLoaded(): boolean {
+  return isUsersLoaded;
+}
+
+// Initialize the user list
+initializeUserList();
+                                
 
 // Authentication manager class
 class AuthManager {
@@ -40,23 +73,22 @@ class AuthManager {
     private static readonly RESET_REQUESTS_KEY = 'lafarge_reset_requests';
 
     static login(email: string, password: string): AuthResult {
-        console.log('Login attempt:', { email, password });
-        console.log('Available users:', mockUsers);
-        
-        const user = mockUsers.find(u => 
+        // Check if users are loaded
+        if (!areUsersLoaded()) {
+            return { success: false, message: 'System is still loading. Please try again in a moment.' };
+        }
+
+        const user = getUserList().find(u => 
             u.email === email && 
-            u.password === password && 
-            u.status === 'active'
+            u.password === password
         );
-        
-        console.log('Found user:', user);
         
         if (user) {
             const session: UserSession = {
                 userId: user.id,
-                email: user.email,
-                role: user.role,
-                name: user.name,
+                email: user.email || '',
+                isAdmin: user.isadmin,
+                username: user.name,
                 loginTime: new Date().toISOString()
             };
             localStorage.setItem(this.SESSION_KEY, JSON.stringify(session));
@@ -79,31 +111,56 @@ class AuthManager {
         return this.getCurrentUser() !== null;
     }
 
-    static requestPasswordReset(email: string): PasswordResetResult {
-        const user = mockUsers.find(u => u.email === email);
-        
-        if (user) {
-            // In a real application, this would send an email
-            const resetRequest = {
-                email,
-                token: this.generateResetToken(),
-                timestamp: new Date().toISOString()
+    static async requestPasswordReset(email: string): Promise<PasswordResetResult> {
+        try {
+            // First, check if user exists by getting all users
+            const usersResponse = await fetch('http://localhost:8080/users/getall');
+            if (!usersResponse.ok) {
+                throw new Error('Failed to connect to server');
+            }
+            
+            const users: User[] = await usersResponse.json();
+            const user = users.find(u => u.email === email);
+            
+            if (!user) {
+                return { success: false, message: 'Email address not found in our system.' };
+            }
+            
+            // Send email with password
+            const emailData = {
+                toEmail: email,
+                subject: 'LaFarge Holcim - Password Recovery',
+                Body: `Hello ${user.name},\n\nYour password is: ${user.password}\n\nFor security reasons, please consider changing your password after logging in.\n\nBest regards,\nLaFarge Holcim Team`
             };
             
-            // Store reset request (in real app, this would be server-side)
-            const existingRequests = JSON.parse(localStorage.getItem(this.RESET_REQUESTS_KEY) || '[]');
-            existingRequests.push(resetRequest);
-            localStorage.setItem(this.RESET_REQUESTS_KEY, JSON.stringify(existingRequests));
+            const emailResponse = await fetch('http://localhost:8080/Email/send', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(emailData)
+            });
             
-            return { success: true, message: 'Password reset link has been sent to your email address.' };
+            if (!emailResponse.ok) {
+                throw new Error('Failed to send email. Please try again later.');
+            }
+            
+            return { success: true, message: 'Your password has been sent to your email address.' };
+            
+        } catch (error) {
+            console.error('Password reset error:', error);
+            if (error instanceof Error) {
+                return { success: false, message: error.message };
+            }
+            return { success: false, message: 'An unexpected error occurred. Please try again later.' };
         }
-        
-        return { success: false, message: 'Email address not found in our system.' };
     }
 
     private static generateResetToken(): string {
         return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     }
+
+
 }
 
 // Authentication form handler
@@ -163,7 +220,7 @@ class AuthFormHandler {
         if (AuthManager.isAuthenticated()) {
             const currentUser = AuthManager.getCurrentUser();
             if (currentUser) {
-                this.redirectToPanel(currentUser.role);
+                this.redirectToPanel(currentUser.isAdmin);
             }
         }
     }
@@ -174,32 +231,28 @@ class AuthFormHandler {
         const email = this.emailInput.value.trim();
         const password = this.passwordInput.value.trim();
         
-        console.log('Form submission:', { email, password });
-        
         if (!this.validateLoginInput(email, password)) {
             return;
         }
         
         const result = AuthManager.login(email, password);
         
-        console.log('Login result:', result);
-        
         if (result.success && result.user) {
             this.hideError();
-            this.redirectToPanel(result.user.role);
+            this.redirectToPanel(result.user.isadmin);
         } else {
-            this.showError(result.message || 'Login failed');
+            this.showErrorModal(result.message || 'Login failed');
         }
     }
 
     private validateLoginInput(email: string, password: string): boolean {
         if (!email || !password) {
-            this.showError('Please fill in all fields');
+            this.showErrorModal('Please fill in all fields');
             return false;
         }
 
         if (!this.isValidEmail(email)) {
-            this.showError('Please enter a valid email address');
+            this.showErrorModal('Please enter a valid email address');
             return false;
         }
 
@@ -211,36 +264,52 @@ class AuthFormHandler {
         return emailRegex.test(email);
     }
 
-    private handleForgotPassword(e: Event): void {
+    private async handleForgotPassword(e: Event): Promise<void> {
         e.preventDefault();
         
         const email = this.resetEmailInput.value.trim();
         
         if (!email) {
-            this.showError('Please enter your email address');
+            this.showErrorModal('Please enter your email address');
             return;
         }
 
         if (!this.isValidEmail(email)) {
-            this.showError('Please enter a valid email address');
+            this.showErrorModal('Please enter a valid email address');
             return;
         }
         
-        const result = AuthManager.requestPasswordReset(email);
+        // Show loading state
+        const submitBtn = this.forgotPasswordForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Sending...';
+        submitBtn.disabled = true;
         
-        if (result.success) {
-            this.showSuccess(result.message);
-            this.resetEmailInput.value = '';
-        } else {
-            this.showError(result.message);
+        try {
+            const result = await AuthManager.requestPasswordReset(email);
+            
+            if (result.success) {
+                this.showSuccessModal(result.message);
+                this.resetEmailInput.value = '';
+                this.hideForgotPasswordModal();
+            } else {
+                this.showErrorModal(result.message);
+            }
+        } catch (error) {
+            this.showErrorModal('An unexpected error occurred. Please try again later.');
+        } finally {
+            // Restore button state
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
         }
     }
 
-    private redirectToPanel(role: string): void {
-        if (role === 'admin') {
-            window.location.href = 'admin.html';
+    private redirectToPanel(isAdmin: boolean): void {
+        // Use replace to prevent back navigation to login page
+        if (isAdmin) {
+            window.location.replace('admin.html');
         } else {
-            window.location.href = 'user.html';
+            window.location.replace('user.html');
         }
     }
 
@@ -268,6 +337,186 @@ class AuthFormHandler {
         setTimeout(() => {
             this.successMessage.style.display = 'none';
         }, 8000);
+    }
+
+    private showSuccessModal(message: string): void {
+        // Create success modal
+        const modal = document.createElement('div');
+        modal.id = 'authSuccessModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            font-family: Arial, sans-serif;
+        `;
+
+        modal.innerHTML = `
+            <div style="
+                background: white;
+                padding: 30px;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                text-align: center;
+                max-width: 400px;
+                width: 90%;
+                animation: slideIn 0.3s ease-out;
+            ">
+                <div style="
+                    width: 60px;
+                    height: 60px;
+                    background: linear-gradient(135deg, #51cf66, #40c057);
+                    border-radius: 50%;
+                    margin: 0 auto 20px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 24px;
+                    color: white;
+                ">✓</div>
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 22px;">Success!</h3>
+                <p style="margin: 0 0 25px 0; color: #666; font-size: 16px; line-height: 1.4;">
+                    ${message}
+                </p>
+                <button id="closeAuthSuccessModal" style="
+                    padding: 10px 20px;
+                    border: none;
+                    background: linear-gradient(135deg, #51cf66, #40c057);
+                    color: white;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 500;
+                    transition: all 0.2s;
+                ">Close</button>
+            </div>
+            <style>
+                @keyframes slideIn {
+                    from { transform: translateY(-50px); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+            </style>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Close button functionality
+        const closeBtn = modal.querySelector('#closeAuthSuccessModal');
+        closeBtn?.addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+
+        // Close on backdrop click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        });
+
+        // Close on Escape key
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                document.body.removeChild(modal);
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+    }
+
+    private showErrorModal(message: string): void {
+        // Create error modal
+        const modal = document.createElement('div');
+        modal.id = 'authErrorModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            font-family: Arial, sans-serif;
+        `;
+
+        modal.innerHTML = `
+            <div style="
+                background: white;
+                padding: 30px;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                text-align: center;
+                max-width: 400px;
+                width: 90%;
+                animation: slideIn 0.3s ease-out;
+            ">
+                <div style="
+                    width: 60px;
+                    height: 60px;
+                    background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+                    border-radius: 50%;
+                    margin: 0 auto 20px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 24px;
+                    color: white;
+                ">⚠</div>
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 22px;">Error</h3>
+                <p style="margin: 0 0 25px 0; color: #666; font-size: 16px; line-height: 1.4;">
+                    ${message}
+                </p>
+                <button id="closeAuthErrorModal" style="
+                    padding: 10px 20px;
+                    border: none;
+                    background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+                    color: white;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 500;
+                    transition: all 0.2s;
+                ">Close</button>
+            </div>
+            <style>
+                @keyframes slideIn {
+                    from { transform: translateY(-50px); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+            </style>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Close button functionality
+        const closeBtn = modal.querySelector('#closeAuthErrorModal');
+        closeBtn?.addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+
+        // Close on backdrop click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        });
+
+        // Close on Escape key
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                document.body.removeChild(modal);
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
     }
 
     private showForgotPasswordModal(e: Event): void {

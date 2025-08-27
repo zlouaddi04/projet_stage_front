@@ -4,8 +4,8 @@
   "description": "LaFarge Holcim Inventory Management System",
   "main": "index.html",
   "scripts": {
-    "start": "npx http-server . -p 8080 -c-1",
-    "dev": "npx http-server . -p 8080 -c-1 -o",
+    "start": "npx http-server . -p 3000 -c-1",
+    "dev": "npx http-server . -p 3000 -c-1 -o",
     "build": "tsc",
     "type-check": "tsc --noEmit"
   },
